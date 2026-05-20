@@ -3,7 +3,7 @@
    ═══════════════════════════════════════════════════════════ */
 
 // ─── CONFIG ──────────────────────────────────────────────────
-const PIN = '1234';
+// PINs definidos en la sección ROLES & AUTH
 const SUPABASE_URL     = 'https://fpwttcyemwqfkjsvwxwz.supabase.co';
 const SUPABASE_ANON_KEY= 'sb_publishable_izZUskrc3yT49khe14SptQ__YX9MGk3';
 const USE_SUPABASE     = true;
@@ -41,10 +41,112 @@ const SEED_LOCATIONS = [
   {id:'loc-17',name:'Biznaga',          address:'', responsable:'', freq_days:15, link_notion:'', playlist_url:'', last_checkin:null},
 ];
 
-// ─── PIN ─────────────────────────────────────────────────────
-function togglePinVis() {
-  const inp = document.getElementById('pin-input');
-  const eye = document.getElementById('pin-eye');
+// ─── ROLES & AUTH ─────────────────────────────────────────────
+// La app abre directamente en modo LECTOR (sin login).
+// Admin entra desde el botón "Admin" en la barra superior → modal con email + contraseña de Supabase.
+// El lector no necesita PIN — la app es de consulta pública interna.
+
+let currentRole = 'lector'; // por defecto siempre lector
+
+// Permisos por rol
+function can(action) {
+  const perms = {
+    admin:  ['view','checkin','edit_loc','delete_loc','change_estado'],
+    lector: ['view'],
+  };
+  return (perms[currentRole] || []).includes(action);
+}
+
+function applyRoleUI() {
+  // Botones de edición: solo admin
+  document.querySelectorAll('.role-editor').forEach(el => {
+    el.style.display = can('edit_loc') ? '' : 'none';
+  });
+
+  // Chip en topbar
+  const chip = document.getElementById('topbar-role-chip');
+  if (chip) {
+    if (currentRole === 'admin') {
+      chip.textContent = 'Admin';
+      chip.className   = 'topbar-role-chip chip-admin';
+    } else {
+      chip.textContent = 'Lectura';
+      chip.className   = 'topbar-role-chip chip-lector';
+    }
+  }
+
+  // Botón Admin (lector) / Salir (admin) en topbar
+  const adminBtn  = document.getElementById('topbar-admin-btn');
+  const logoutBtn = document.getElementById('topbar-logout-btn');
+  if (adminBtn)  adminBtn.style.display  = currentRole === 'lector' ? '' : 'none';
+  if (logoutBtn) logoutBtn.style.display = currentRole === 'admin'  ? '' : 'none';
+
+  // Banner de solo lectura
+  let banner = document.getElementById('readonly-banner');
+  if (currentRole === 'lector') {
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'readonly-banner';
+      banner.style.cssText = [
+        'position:fixed','top:56px','left:0','right:0','z-index:80',
+        'background:var(--color-surface-offset)',
+        'color:var(--color-text-faint)',
+        'text-align:center','padding:5px',
+        'font-size:var(--text-xs)',
+        'border-bottom:1px solid var(--color-divider)',
+      ].join(';');
+      banner.innerHTML = 'Modo lectura · <button onclick="openAdminLogin()" style="background:none;border:none;color:var(--color-primary);font-size:inherit;cursor:pointer;font-weight:600;padding:0">Entrar como admin</button>';
+      document.body.appendChild(banner);
+    }
+  } else if (banner) {
+    banner.remove();
+  }
+}
+
+// ── Abrir modal de login admin ────────────────────────────────
+function openAdminLogin() {
+  document.getElementById('admin-email').value    = '';
+  document.getElementById('admin-password').value = '';
+  document.getElementById('admin-error').textContent = '';
+  openModal('modal-admin-login');
+  setTimeout(() => document.getElementById('admin-email').focus(), 100);
+}
+
+// ── Login admin con Supabase Auth ─────────────────────────────
+async function loginAdmin() {
+  const email    = document.getElementById('admin-email').value.trim();
+  const password = document.getElementById('admin-password').value;
+  const errEl    = document.getElementById('admin-error');
+  const btn      = document.getElementById('admin-login-btn');
+  const label    = document.getElementById('admin-login-label');
+
+  if (!email || !password) { errEl.textContent = 'Completa email y contraseña.'; return; }
+
+  btn.disabled         = true;
+  label.innerHTML      = '<span class="saving-spin"></span> Verificando…';
+  errEl.textContent    = '';
+
+  try {
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    currentRole = 'admin';
+    sessionStorage.setItem('role', 'admin');
+    closeModal('modal-admin-login');
+    applyRoleUI();
+    showToast('Bienvenido, admin', 'success');
+  } catch {
+    errEl.textContent = 'Email o contraseña incorrectos.';
+    document.getElementById('admin-password').value = '';
+    document.getElementById('admin-password').focus();
+  } finally {
+    btn.disabled      = false;
+    label.textContent = 'Entrar como admin';
+  }
+}
+
+function toggleAdminPassVis() {
+  const inp = document.getElementById('admin-password');
+  const eye = document.getElementById('admin-pass-eye');
   if (inp.type === 'password') {
     inp.type = 'text';
     eye.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
@@ -54,34 +156,52 @@ function togglePinVis() {
   }
 }
 
-function checkPin() {
-  const val = document.getElementById('pin-input').value;
-  if (val === PIN) {
-    sessionStorage.setItem('unlocked', '1');
-    openAppShell();
-  } else {
-    document.getElementById('pin-error').textContent = 'PIN incorrecto.';
-    const inp = document.getElementById('pin-input');
-    inp.classList.add('error');
-    setTimeout(() => { inp.classList.remove('error'); inp.value = ''; }, 600);
-  }
-}
-document.getElementById('pin-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkPin(); });
+// Enter en campo contraseña dispara login
+document.addEventListener('DOMContentLoaded', () => {
+  const passEl = document.getElementById('admin-password');
+  if (passEl) passEl.addEventListener('keydown', e => { if (e.key === 'Enter') loginAdmin(); });
+});
 
+// ── Logout admin → volver a lector ───────────────────────────
+function logout() {
+  sb.auth.signOut();
+  sessionStorage.removeItem('role');
+  currentRole = 'lector';
+  applyRoleUI();
+  renderAll();
+  showToast('Sesión de admin cerrada', 'info');
+}
+
+// ── Shell ────────────────────────────────────────────────────
 let __appInitialized = false;
 function openAppShell() {
-  document.getElementById('pin-gate').style.display = 'none';
-  document.getElementById('app').style.display = 'flex';
+  applyRoleUI();
   if (!__appInitialized) { __appInitialized = true; initApp(); }
 }
-if (sessionStorage.getItem('unlocked') === '1') openAppShell();
 
-function logout() { sessionStorage.removeItem('unlocked'); location.reload(); }
+// ── Inicialización ───────────────────────────────────────────
+// La app siempre carga. Verificamos si hay sesión admin activa en Supabase.
+(async () => {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      currentRole = 'admin';
+      sessionStorage.setItem('role', 'admin');
+    } else {
+      currentRole = 'lector';
+      sessionStorage.removeItem('role');
+    }
+  } catch {
+    currentRole = 'lector';
+  }
+  openAppShell();
+})();
 
 // ─── INIT ─────────────────────────────────────────────────────
 async function initApp() {
   setupThemeToggle();
   setupFotoPreview();
+  applyRoleUI();   // apply role before data loads
   await loadAll();
   renderAll();
   if ('serviceWorker' in navigator) {
@@ -288,15 +408,15 @@ function renderLocaciones() {
       <div class="loc-card-footer">
         <span class="chip ${statusClass}">${statusLabel}</span>
         <div class="loc-card-actions">
-          <button class="icon-btn" onclick="openCheckinModal('${loc.id}')" title="Nuevo check-in">
+          ${can('checkin') ? `<button class="icon-btn" onclick="openCheckinModal('${loc.id}')" title="Nuevo check-in">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          </button>
-          <button class="icon-btn" onclick="openLocModal('${loc.id}')" title="Editar">
+          </button>` : ''}
+          ${can('edit_loc') ? `<button class="icon-btn" onclick="openLocModal('${loc.id}')" title="Editar">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          </button>
-          <button class="icon-btn danger" onclick="deleteLoc('${loc.id}')" title="Eliminar">
+          </button>` : ''}
+          ${can('delete_loc') ? `<button class="icon-btn danger" onclick="deleteLoc('${loc.id}')" title="Eliminar">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-          </button>
+          </button>` : ''}
         </div>
       </div>
     </div>`;
@@ -378,14 +498,14 @@ function renderRegistro() {
       <td>${fotoSrc ? `<img src="${esc(fotoSrc)}" style="height:36px;border-radius:4px;object-fit:cover;cursor:pointer" onclick="window.open('${esc(fotoSrc)}','_blank')" loading="lazy">` : '—'}</td>
       <td style="color:var(--color-text-muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ci.notes||'')}</td>
       <td>${ci.link ? `<a href="${esc(ci.link)}" target="_blank" rel="noopener" class="text-link">Ver ↗</a>` : ''}</td>
-      <td><div class="td-actions">
+      ${can('edit_loc') ? `<td><div class="td-actions">
         <button class="icon-btn" onclick="openCheckinModal(null,'${ci.id}')" title="Editar">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </button>
         <button class="icon-btn danger" onclick="deleteCheckin('${ci.id}')" title="Eliminar">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
         </button>
-      </div></td>
+      </div></td>` : '<td></td>'}
     </tr>`;
   }).join('');
 }
@@ -438,7 +558,7 @@ function renderRutaSugerida() {
       </div>
       <div style="display:flex;gap:var(--space-2);flex-shrink:0">
         <button class="btn btn-ghost btn-sm" onclick="addToRuta('${loc.id}')">+ Ruta</button>
-        <button class="btn btn-primary btn-sm" onclick="openCheckinModal('${loc.id}')">Check-in</button>
+        ${can('checkin') ? `<button class="btn btn-primary btn-sm" onclick="openCheckinModal('${loc.id}')">Check-in</button>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -756,9 +876,9 @@ function renderVideoDetail(locId) {
         <div class="video-ci-content">
           <div class="video-ci-top">
             <span class="video-ci-date">${fmtDate(ci.date)}</span>
-            <button class="icon-btn" onclick="openCheckinModal(null,'${ci.id}')" title="Editar">
+            ${can('edit_loc') ? `<button class="icon-btn" onclick="openCheckinModal(null,'${ci.id}')" title="Editar">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            </button>
+            </button>` : ''}
           </div>
           ${ci.notes ? `<div class="video-ci-notes">${esc(ci.notes)}</div>` : ''}
           <div class="video-ci-bottom">
@@ -768,6 +888,7 @@ function renderVideoDetail(locId) {
                   class="estado-btn ${ci.estado===e.key?'active-'+e.key:''}"
                   onclick="updateCheckinEstado('${ci.id}','${e.key}',this)"
                   title="${e.label}"
+                  ${!can('change_estado') ? 'disabled style="opacity:.5;cursor:default;pointer-events:none"' : ''}
                 >${e.label}</button>
               `).join('')}
             </div>
@@ -786,6 +907,7 @@ function renderVideoDetail(locId) {
 
 // ── Actualizar estado de video inline ─────────────────────────
 async function updateCheckinEstado(ciId, nuevoEstado, btnEl) {
+  if (!can('change_estado')) { showToast('Sin permisos para cambiar estado', 'error'); return; }
   const ci = checkins.find(c => c.id === ciId);
   if (!ci || ci.estado === nuevoEstado) return;
 
@@ -798,7 +920,7 @@ async function updateCheckinEstado(ciId, nuevoEstado, btnEl) {
 
   if (USE_SUPABASE) {
     const { error } = await sb.from('checkins')
-      .update({ estado: nuevoEstado, updated_at: new Date().toISOString() })
+      .update({ estado: nuevoEstado })
       .eq('id', ciId);
     if (error) {
       showToast('Error guardando: ' + error.message, 'error');
@@ -819,6 +941,7 @@ async function updateCheckinEstado(ciId, nuevoEstado, btnEl) {
 
 // ─── MODALS: LOCACIÓN ─────────────────────────────────────────
 function openLocModal(id) {
+  if (!can('edit_loc')) { showToast('Modo lectura — sin permisos para editar', 'error'); return; }
   const isEdit = !!id;
   document.getElementById('modal-loc-title').textContent = isEdit ? 'Editar locación' : 'Nueva locación';
   if (isEdit) {
@@ -838,6 +961,7 @@ function openLocModal(id) {
 }
 
 async function saveLoc() {
+  if (!can('edit_loc')) { showToast('Sin permisos para editar locaciones', 'error'); return; }
   const id   = document.getElementById('loc-id').value;
   const name = document.getElementById('loc-name').value.trim();
   const freq = parseInt(document.getElementById('loc-freq').value);
@@ -852,7 +976,6 @@ async function saveLoc() {
     playlist_url: document.getElementById('loc-playlist').value.trim(),
     last_checkin: id ? (locations.find(l=>l.id===id)||{}).last_checkin : null,
     created_at:   id ? (locations.find(l=>l.id===id)||{}).created_at   : new Date().toISOString(),
-    updated_at:   new Date().toISOString(),
   };
   if (USE_SUPABASE) {
     const { error } = await sb.from('locations').upsert(obj);
@@ -945,6 +1068,7 @@ async function uploadFotoToSupabase(file, checkinId) {
 
 // ─── MODALS: CHECK-IN ─────────────────────────────────────────
 function openCheckinModal(locId, ciId) {
+  if (!can('checkin')) { showToast('Modo lectura — sin permisos para check-ins', 'error'); return; }
   const sel = document.getElementById('ci-loc');
   sel.innerHTML = '<option value="">— Selecciona —</option>' +
     locations.map(l=>`<option value="${l.id}">${esc(l.name)}</option>`).join('');
@@ -977,6 +1101,7 @@ function openCheckinModal(locId, ciId) {
 }
 
 async function saveCheckin() {
+  if (!can('checkin')) { showToast('Sin permisos para registrar check-ins', 'error'); return; }
   const id    = document.getElementById('ci-id').value;
   const locId = document.getElementById('ci-loc').value;
   const date  = document.getElementById('ci-date').value;
@@ -1014,7 +1139,6 @@ async function saveCheckin() {
     link:   document.getElementById('ci-link').value.trim()||null,
     notes:  document.getElementById('ci-notes').value.trim()||null,
     created_at: id?(checkins.find(c=>c.id===id)||{}).created_at:new Date().toISOString(),
-    updated_at: new Date().toISOString(),
   };
 
   if (USE_SUPABASE) {
@@ -1022,7 +1146,7 @@ async function saveCheckin() {
     if (error) { showToast('Error: '+error.message,'error'); return; }
     updateLastCheckins();
     const loc = locations.find(l=>l.id===locId);
-    if (loc) await sb.from('locations').update({last_checkin:loc.last_checkin,updated_at:new Date().toISOString()}).eq('id',locId);
+    if (loc) await sb.from('locations').update({last_checkin:loc.last_checkin}).eq('id',locId);
   }
 
   const idx = checkins.findIndex(c=>c.id===obj.id);
@@ -1036,6 +1160,7 @@ async function saveCheckin() {
 
 // ─── DELETE ───────────────────────────────────────────────────
 function deleteLoc(id) {
+  if (!can('delete_loc')) { showToast('Solo el admin puede eliminar locaciones', 'error'); return; }
   const loc=locations.find(l=>l.id===id);
   confirmDialog(`Eliminar "${loc?.name}"`, '¿Seguro? Se eliminarán también sus check-ins.', async () => {
     if (USE_SUPABASE) {
@@ -1050,6 +1175,7 @@ function deleteLoc(id) {
   });
 }
 function deleteCheckin(id) {
+  if (!can('delete_loc')) { showToast('Solo el admin puede eliminar registros', 'error'); return; }
   confirmDialog('Eliminar check-in','¿Eliminar este registro?', async () => {
     if (USE_SUPABASE) {
       const {error}=await sb.from('checkins').delete().eq('id',id);

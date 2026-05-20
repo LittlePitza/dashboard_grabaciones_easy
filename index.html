@@ -15,37 +15,44 @@
 </head>
 <body>
 
-<!-- ═══ PIN GATE ═══════════════════════════════════════════════════════════ -->
-<div id="pin-gate">
-  <div class="pin-box">
-    <div class="pin-logo">
-      <svg width="36" height="36" viewBox="0 0 32 32" fill="none">
-        <rect width="32" height="32" rx="8" fill="currentColor" opacity="0.12"/>
-        <path d="M8 24L8 12L16 6L24 12L24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-        <rect x="13" y="17" width="6" height="7" rx="1" stroke="currentColor" stroke-width="2" fill="none"/>
-        <circle cx="20" cy="10" r="3" stroke="currentColor" stroke-width="2" fill="none"/>
-        <circle cx="20" cy="10" r="1" fill="currentColor"/>
-      </svg>
-      <span class="pin-logo-text">Grabación Obras</span>
-    </div>
-    <p class="pin-title">Ingresa el PIN</p>
-    <p class="pin-subtitle">Acceso al sistema de seguimiento</p>
-    <div class="pin-input-row">
-      <input type="password" id="pin-input" class="pin-input" placeholder="••••" maxlength="10" autocomplete="current-password">
-      <button class="icon-btn pin-toggle" onclick="togglePinVis()" aria-label="Mostrar PIN">
-        <svg id="pin-eye" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-        </svg>
+<!-- ═══ MODAL: LOGIN ADMIN ═══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-admin-login" role="dialog" aria-modal="true" onclick="closeOnOverlay(event,'modal-admin-login')">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <h2 class="modal-title">Acceso administrador</h2>
+      <button class="icon-btn" onclick="closeModal('modal-admin-login')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
-    <p id="pin-error" class="pin-error"></p>
-    <p class="pin-hint">PIN por defecto: 1234</p>
-    <button class="btn btn-primary pin-enter-btn" onclick="checkPin()">Entrar</button>
+    <div class="modal-body">
+      <div class="field">
+        <label class="field-label-sm" for="admin-email">Email</label>
+        <input type="email" id="admin-email" class="field-input" placeholder="tu@email.com" autocomplete="email">
+      </div>
+      <div class="field">
+        <label class="field-label-sm" for="admin-password">Contraseña</label>
+        <div style="position:relative">
+          <input type="password" id="admin-password" class="field-input" placeholder="••••••••" autocomplete="current-password" style="padding-right:2.5rem;width:100%">
+          <button class="icon-btn" onclick="toggleAdminPassVis()" aria-label="Mostrar contraseña" style="position:absolute;right:6px;top:50%;transform:translateY(-50%)">
+            <svg id="admin-pass-eye" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <p id="admin-error" class="pin-error" style="margin-top:4px"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-admin-login')">Cancelar</button>
+      <button class="btn btn-primary" id="admin-login-btn" onclick="loginAdmin()">
+        <span id="admin-login-label">Entrar como admin</span>
+      </button>
+    </div>
   </div>
 </div>
 
-<!-- ═══ APP SHELL ═══════════════════════════════════════════════════════════ -->
-<div id="app" style="display:none">
+<!-- ═══ APP ══════════════════════════════════════════════════════════════════ -->
+<div id="app">
   <header id="topbar">
     <div class="topbar-left">
       <button class="icon-btn mobile-menu-btn" onclick="toggleSidebar()" aria-label="Menú">
@@ -65,6 +72,7 @@
       </div>
     </div>
     <div class="topbar-right">
+      <div class="topbar-role-chip" id="topbar-role-chip"></div>
       <span id="sync-indicator" class="sync-indicator sync-offline">⬤ offline</span>
       <button class="icon-btn" onclick="refreshAll()" title="Recargar">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
@@ -72,7 +80,12 @@
       <button class="icon-btn" data-theme-toggle aria-label="Cambiar tema">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       </button>
-      <button class="btn btn-ghost btn-sm topbar-logout" onclick="logout()">Salir</button>
+      <!-- Lector ve botón para entrar como admin; admin ve botón para cerrar sesión -->
+      <button class="btn btn-ghost btn-sm" id="topbar-admin-btn" onclick="openAdminLogin()" style="display:none">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Admin
+      </button>
+      <button class="btn btn-ghost btn-sm topbar-logout" id="topbar-logout-btn" onclick="logout()" style="display:none">Salir</button>
     </div>
   </header>
 
@@ -82,7 +95,6 @@
         <div class="sidebar-brand-name">Grabación Obras</div>
         <div class="sidebar-brand-sub">Seguimiento de grabaciones</div>
       </div>
-
       <div class="sidebar-section">
         <span class="sidebar-label">Principal</span>
         <button class="nav-item active" data-view="locaciones" onclick="navigate('locaciones')">
@@ -99,9 +111,7 @@
           <span class="nav-label">Registro</span>
         </button>
       </div>
-
       <div class="sidebar-divider"></div>
-
       <div class="sidebar-section">
         <span class="sidebar-label">Planificación</span>
         <button class="nav-item" data-view="ruta" onclick="navigate('ruta')">
@@ -114,9 +124,7 @@
           <span class="nav-label">Al corriente</span>
         </button>
       </div>
-
       <div class="sidebar-divider"></div>
-
       <div class="sidebar-section">
         <span class="sidebar-label">Producción</span>
         <button class="nav-item" data-view="videos" onclick="navigate('videos')">
@@ -125,16 +133,15 @@
           <span class="nav-badge nav-badge-purple" id="badge-videos">0</span>
         </button>
       </div>
-
       <div class="sidebar-footer">
         <div class="sidebar-stat"><span>Locaciones</span><span class="sidebar-stat-val" id="sidebar-loc-count">—</span></div>
-        <div class="sidebar-stat"><span>Versión</span><span class="sidebar-stat-val">1.2</span></div>
+        <div class="sidebar-stat"><span>Versión</span><span class="sidebar-stat-val">1.3</span></div>
       </div>
     </nav>
 
     <main id="content">
 
-      <!-- ── VIEW: LOCACIONES ── -->
+      <!-- VIEW: LOCACIONES -->
       <section class="view active" id="view-locaciones">
         <div class="page-header">
           <h1 class="page-title">Locaciones</h1>
@@ -143,7 +150,7 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Exportar
             </button>
-            <button class="btn btn-primary btn-sm" onclick="openLocModal()">
+            <button class="btn btn-primary btn-sm role-editor" onclick="openLocModal()">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Nueva locación
             </button>
@@ -161,18 +168,18 @@
         <div id="loc-grid" class="loc-grid"></div>
       </section>
 
-      <!-- ── VIEW: POR VENCER ── -->
+      <!-- VIEW: POR VENCER -->
       <section class="view" id="view-vencer">
         <div class="page-header">
           <div>
             <h1 class="page-title">Por <span style="color:var(--color-primary)">Vencer</span></h1>
-            <p class="page-subtitle">Locaciones cuyo próximo check-in está próximo o ya venció. Ordena por urgencia.</p>
+            <p class="page-subtitle">Locaciones cuyo próximo check-in está próximo o ya venció.</p>
           </div>
         </div>
         <div id="vencer-list" class="vencer-list"></div>
       </section>
 
-      <!-- ── VIEW: REGISTRO ── -->
+      <!-- VIEW: REGISTRO -->
       <section class="view" id="view-registro">
         <div class="page-header">
           <h1 class="page-title">Registro</h1>
@@ -181,7 +188,7 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Exportar
             </button>
-            <button class="btn btn-primary btn-sm" onclick="openCheckinModal()">
+            <button class="btn btn-primary btn-sm role-editor" onclick="openCheckinModal()">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Nuevo check-in
             </button>
@@ -196,18 +203,18 @@
         </div>
         <div class="registro-table">
           <table>
-            <thead><tr><th>Locación</th><th>Fecha</th><th>Estado</th><th>Foto</th><th>Notas</th><th>Link</th><th></th></tr></thead>
+            <thead><tr><th>Locación</th><th>Fecha</th><th>Estado</th><th>Foto</th><th>Notas</th><th>Link</th><th class="role-editor"></th></tr></thead>
             <tbody id="registro-tbody"></tbody>
           </table>
         </div>
         <div id="registro-empty" class="empty-state" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           <h3>Sin registros</h3><p>Agrega tu primer check-in para comenzar el seguimiento.</p>
-          <button class="btn btn-primary" onclick="openCheckinModal()">Nuevo check-in</button>
+          <button class="btn btn-primary role-editor" onclick="openCheckinModal()">Nuevo check-in</button>
         </div>
       </section>
 
-      <!-- ── VIEW: MI RUTA ── -->
+      <!-- VIEW: MI RUTA -->
       <section class="view" id="view-ruta">
         <div class="page-header">
           <div>
@@ -217,16 +224,13 @@
         </div>
         <div class="ruta-tabs">
           <button class="ruta-tab active" data-tab="sugerida" onclick="switchRutaTab('sugerida',this)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            Ruta sugerida
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Ruta sugerida
           </button>
           <button class="ruta-tab" data-tab="crear" onclick="switchRutaTab('crear',this)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Crear ruta
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Crear ruta
           </button>
           <button class="ruta-tab" data-tab="semanas" onclick="switchRutaTab('semanas',this)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            Por semana
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Por semana
           </button>
         </div>
         <div class="ruta-tab-panel active" id="ruta-panel-sugerida">
@@ -235,12 +239,9 @@
               <div class="sugerida-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Generada automáticamente</div>
               <p class="sugerida-desc">Las obras más urgentes ordenadas por prioridad.</p>
             </div>
-            <div class="sugerida-actions">
-              <button class="btn btn-secondary btn-sm" onclick="exportRuta('sugerida')">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-                Compartir
-              </button>
-            </div>
+            <button class="btn btn-secondary btn-sm" onclick="exportRuta('sugerida')">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>Compartir
+            </button>
           </div>
           <div id="ruta-sugerida-list" class="ruta-sugerida-list"></div>
         </div>
@@ -259,8 +260,7 @@
                 <div class="crear-header-actions">
                   <button class="btn btn-ghost btn-sm" onclick="clearRuta()">Limpiar</button>
                   <button class="btn btn-primary btn-sm" onclick="exportRuta('custom')" id="ruta-share-btn" disabled>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-                    Compartir
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>Compartir
                   </button>
                 </div>
               </div>
@@ -282,7 +282,7 @@
         </div>
       </section>
 
-      <!-- ── VIEW: AL CORRIENTE ── -->
+      <!-- VIEW: AL CORRIENTE -->
       <section class="view" id="view-corriente">
         <div class="page-header"><h1 class="page-title">Al corriente</h1></div>
         <p class="page-subtitle" style="margin-bottom:var(--space-6)">Locaciones grabadas recientemente y dentro de su frecuencia.</p>
@@ -293,7 +293,7 @@
         </div>
       </section>
 
-      <!-- ── VIEW: VIDEOS ── -->
+      <!-- VIEW: VIDEOS -->
       <section class="view" id="view-videos">
         <div class="page-header">
           <div>
@@ -302,13 +302,10 @@
           </div>
           <div class="page-actions">
             <button class="btn btn-secondary btn-sm" id="btn-back-videos" onclick="closeVideoDetail()" style="display:none">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-              Todas las obras
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>Todas las obras
             </button>
           </div>
         </div>
-
-        <!-- Grid de obras -->
         <div id="videos-grid-panel">
           <div class="filters">
             <input type="search" class="search-input" id="videos-search" placeholder="Buscar obra…" oninput="renderVideosGrid()">
@@ -318,8 +315,6 @@
           </div>
           <div id="videos-obra-grid" class="videos-obra-grid"></div>
         </div>
-
-        <!-- Detalle de obra (biblioteca) -->
         <div id="videos-detail-panel" style="display:none">
           <div class="video-detail-header">
             <div class="video-detail-obra-info">
@@ -337,9 +332,7 @@
   </div>
 </div>
 
-<!-- ═══ MODALES ════════════════════════════════════════════════════════════ -->
-
-<!-- Modal: Locación -->
+<!-- MODALES -->
 <div class="modal-overlay" id="modal-loc" role="dialog" aria-modal="true" onclick="closeOnOverlay(event,'modal-loc')">
   <div class="modal">
     <div class="modal-header">
@@ -348,33 +341,15 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="loc-id">
-      <div class="field">
-        <label for="loc-name">Nombre *</label>
-        <input type="text" id="loc-name" class="field-input" placeholder="Ej. Academia Cenit" required>
-      </div>
+      <div class="field"><label for="loc-name">Nombre *</label><input type="text" id="loc-name" class="field-input" placeholder="Ej. Academia Cenit" required></div>
       <div class="field-row">
-        <div class="field">
-          <label for="loc-responsable">Responsable</label>
-          <input type="text" id="loc-responsable" class="field-input" placeholder="Nombre">
-        </div>
-        <div class="field">
-          <label for="loc-freq">Frecuencia (días) *</label>
-          <input type="number" id="loc-freq" class="field-input" min="1" max="365" value="15">
-        </div>
+        <div class="field"><label for="loc-responsable">Responsable</label><input type="text" id="loc-responsable" class="field-input" placeholder="Nombre"></div>
+        <div class="field"><label for="loc-freq">Frecuencia (días) *</label><input type="number" id="loc-freq" class="field-input" min="1" max="365" value="15"></div>
       </div>
-      <div class="field">
-        <label for="loc-address">Dirección</label>
-        <input type="text" id="loc-address" class="field-input" placeholder="Calle, colonia, ciudad">
-      </div>
+      <div class="field"><label for="loc-address">Dirección</label><input type="text" id="loc-address" class="field-input" placeholder="Calle, colonia, ciudad"></div>
       <div class="field-row">
-        <div class="field">
-          <label for="loc-notion">Link Notion / Drive</label>
-          <input type="url" id="loc-notion" class="field-input" placeholder="https://…">
-        </div>
-        <div class="field">
-          <label for="loc-playlist">Playlist YouTube</label>
-          <input type="url" id="loc-playlist" class="field-input" placeholder="https://youtube.com/playlist?…">
-        </div>
+        <div class="field"><label for="loc-notion">Link Notion / Drive</label><input type="url" id="loc-notion" class="field-input" placeholder="https://…"></div>
+        <div class="field"><label for="loc-playlist">Playlist YouTube</label><input type="url" id="loc-playlist" class="field-input" placeholder="https://youtube.com/playlist?…"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -384,7 +359,6 @@
   </div>
 </div>
 
-<!-- Modal: Check-in -->
 <div class="modal-overlay" id="modal-checkin" role="dialog" aria-modal="true" onclick="closeOnOverlay(event,'modal-checkin')">
   <div class="modal">
     <div class="modal-header">
@@ -394,17 +368,10 @@
     <div class="modal-body">
       <input type="hidden" id="ci-id">
       <div class="field-row">
-        <div class="field">
-          <label for="ci-loc">Locación *</label>
-          <select id="ci-loc" class="field-select"><option value="">— Selecciona —</option></select>
-        </div>
-        <div class="field">
-          <label for="ci-date">Fecha *</label>
-          <input type="date" id="ci-date" class="field-input">
-        </div>
+        <div class="field"><label for="ci-loc">Locación *</label><select id="ci-loc" class="field-select"><option value="">— Selecciona —</option></select></div>
+        <div class="field"><label for="ci-date">Fecha *</label><input type="date" id="ci-date" class="field-input"></div>
       </div>
-      <div class="field">
-        <label for="ci-estado">Estado inicial del material</label>
+      <div class="field"><label for="ci-estado">Estado inicial del material</label>
         <select id="ci-estado" class="field-select">
           <option value="grabado">Grabado</option>
           <option value="en_edicion">En edición</option>
@@ -425,18 +392,11 @@
         <input type="file" id="ci-foto-file" accept="image/*" capture="environment" style="display:none">
         <input type="hidden" id="ci-foto-url">
         <button type="button" class="btn btn-ghost btn-sm foto-remove-btn" id="ci-foto-remove" style="display:none;margin-top:4px" onclick="removeFoto()">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          Quitar foto
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Quitar foto
         </button>
       </div>
-      <div class="field">
-        <label for="ci-link">Link del video (YouTube / Drive)</label>
-        <input type="url" id="ci-link" class="field-input" placeholder="https://…">
-      </div>
-      <div class="field">
-        <label for="ci-notes">Notas</label>
-        <textarea id="ci-notes" class="field-textarea" placeholder="Comentarios adicionales…"></textarea>
-      </div>
+      <div class="field"><label for="ci-link">Link del video (YouTube / Drive)</label><input type="url" id="ci-link" class="field-input" placeholder="https://…"></div>
+      <div class="field"><label for="ci-notes">Notas</label><textarea id="ci-notes" class="field-textarea" placeholder="Comentarios adicionales…"></textarea></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-checkin')">Cancelar</button>
@@ -445,7 +405,6 @@
   </div>
 </div>
 
-<!-- Confirm Dialog -->
 <div class="confirm-overlay" id="confirm-overlay" onclick="closeOnOverlay(event,'confirm-overlay')">
   <div class="confirm-box">
     <h3 id="confirm-title">¿Confirmar acción?</h3>
@@ -458,7 +417,7 @@
 </div>
 
 <div id="toast-container" aria-live="polite"></div>
-<div id="update-banner" style="display:none;position:fixed;bottom:var(--space-6);left:50%;transform:translateX(-50%);z-index:800;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-full);padding:var(--space-2) var(--space-4);box-shadow:var(--shadow-lg);display:none;align-items:center;gap:var(--space-3);font-size:var(--text-xs);white-space:nowrap">
+<div id="update-banner" style="display:none;position:fixed;bottom:var(--space-6);left:50%;transform:translateX(-50%);z-index:800;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-full);padding:var(--space-2) var(--space-4);box-shadow:var(--shadow-lg);align-items:center;gap:var(--space-3);font-size:var(--text-xs);white-space:nowrap">
   <span style="color:var(--color-text-muted)">Nueva versión disponible</span>
   <button onclick="applyUpdate()" style="background:var(--color-primary);color:#fff;border:none;border-radius:var(--radius-full);padding:4px 14px;font-size:var(--text-xs);font-weight:600;cursor:pointer">Actualizar</button>
 </div>
