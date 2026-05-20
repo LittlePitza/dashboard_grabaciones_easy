@@ -1,619 +1,438 @@
-<!doctype html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Grabación Obras</title>
-<link rel="stylesheet" href="styles.css">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase.js"></script>
-</head>
-<body>
-TYPE html>
+<!DOCTYPE html>
 <html lang="es" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Grabación Obras</title>
 <meta name="theme-color" content="#4f98a3">
+<meta name="description" content="Sistema de seguimiento de grabaciones de obras">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<!-- Supabase CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>
-/* ─── DESIGN TOKENS ───────────────────────────────── */
-:root, [data-theme="light"] {
-  --color-bg: #f7f6f2; --color-surface: #f9f8f5; --color-surface-2: #fbfbf9;
-  --color-surface-offset: #f3f0ec; --color-surface-dynamic: #e6e4df;
-  --color-divider: #dcd9d5; --color-border: #d4d1ca;
-  --color-text: #28251d; --color-text-muted: #7a7974; --color-text-faint: #bab9b4;
-  --color-text-inverse: #f9f8f4;
-  --color-primary: #01696f; --color-primary-hover: #0c4e54; --color-primary-active: #0f3638;
-  --color-primary-highlight: #cedcd8;
-  --color-success: #437a22; --color-success-hover: #2e5c10; --color-success-highlight: #d4dfcc;
-  --color-warning: #964219; --color-warning-highlight: #ddcfc6;
-  --color-error: #a12c7b; --color-error-hover: #7d1e5e; --color-error-highlight: #e0ced7;
-  --color-orange: #da7101; --color-orange-highlight: #e7d7c4;
-  --color-gold: #d19900; --color-gold-highlight: #e9e0c6;
-  --color-blue: #006494; --color-blue-highlight: #c6d8e4;
-  --shadow-sm: 0 1px 2px oklch(0.2 0.01 80 / 0.06);
-  --shadow-md: 0 4px 12px oklch(0.2 0.01 80 / 0.08);
-  --shadow-lg: 0 12px 32px oklch(0.2 0.01 80 / 0.12);
-  --radius-sm: 0.375rem; --radius-md: 0.5rem; --radius-lg: 0.75rem; --radius-xl: 1rem; --radius-full: 9999px;
-  --transition: 180ms cubic-bezier(0.16, 1, 0.3, 1);
-  --space-1:.25rem; --space-2:.5rem; --space-3:.75rem; --space-4:1rem; --space-5:1.25rem;
-  --space-6:1.5rem; --space-8:2rem; --space-10:2.5rem; --space-12:3rem; --space-16:4rem;
-  --text-xs:clamp(0.75rem,0.7rem + 0.25vw,0.875rem);
-  --text-sm:clamp(0.875rem,0.8rem + 0.35vw,1rem);
-  --text-base:clamp(1rem,0.95rem + 0.25vw,1.125rem);
-  --text-lg:clamp(1.125rem,1rem + 0.75vw,1.5rem);
-  --text-xl:clamp(1.5rem,1.2rem + 1.25vw,2.25rem);
-  --sidebar-w: 240px;
-  --topbar-h: 56px;
-  --font-body: 'Inter', 'Helvetica Neue', sans-serif;
-  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
-}
-[data-theme="dark"] {
-  --color-bg: #111110; --color-surface: #171614; --color-surface-2: #1c1b19;
-  --color-surface-offset: #1d1c1a; --color-surface-dynamic: #2d2c2a;
-  --color-divider: #222120; --color-border: #2e2d2b;
-  --color-text: #cdccca; --color-text-muted: #797876; --color-text-faint: #4a4948;
-  --color-text-inverse: #2b2a28;
-  --color-primary: #4f98a3; --color-primary-hover: #227f8b; --color-primary-active: #1a626b;
-  --color-primary-highlight: #1e3536;
-  --color-success: #6daa45; --color-success-hover: #4d8f25; --color-success-highlight: #1e2e16;
-  --color-warning: #bb653b; --color-warning-highlight: #2e1c10;
-  --color-error: #d163a7; --color-error-hover: #b9478f; --color-error-highlight: #301224;
-  --color-orange: #fdab43; --color-orange-highlight: #2d1c08;
-  --color-gold: #e8af34; --color-gold-highlight: #2d2310;
-  --color-blue: #5591c7; --color-blue-highlight: #0e2233;
-  --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.3); --shadow-md: 0 4px 12px oklch(0 0 0 / 0.4);
-  --shadow-lg: 0 12px 32px oklch(0 0 0 / 0.6);
-}
-/* ─── BASE ─────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { -webkit-font-smoothing: antialiased; scroll-behavior: smooth; }
-body { min-height: 100dvh; font-family: var(--font-body); font-size: var(--text-sm); color: var(--color-text); background: var(--color-bg); line-height: 1.5; }
-img { display: block; max-width: 100%; }
-button { cursor: pointer; background: none; border: none; font: inherit; color: inherit; }
-input, select, textarea { font: inherit; color: inherit; background: none; border: none; outline: none; }
-ul { list-style: none; }
-a { color: inherit; text-decoration: none; }
-:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; border-radius: var(--radius-sm); }
-::selection { background: oklch(from var(--color-primary) l c h / 0.2); }
-/* ─── LAYOUT ────────────────────────────────────────── */
-#app { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
-/* PIN GATE */
-#pin-gate {
-  position: fixed; inset: 0; z-index: 1000;
-  background: var(--color-bg);
-  display: flex; align-items: center; justify-content: center;
-}
-.pin-box {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  padding: var(--space-10) var(--space-8);
-  width: min(400px, 90vw);
-  box-shadow: var(--shadow-lg);
-  text-align: center;
-}
-.pin-logo { display: flex; align-items: center; justify-content: center; gap: var(--space-3); margin-bottom: var(--space-8); }
-.pin-logo svg { color: var(--color-primary); }
-.pin-logo-text { font-size: var(--text-lg); font-weight: 700; color: var(--color-text); }
-.pin-title { font-size: var(--text-base); font-weight: 600; color: var(--color-text); margin-bottom: var(--space-2); }
-.pin-subtitle { font-size: var(--text-xs); color: var(--color-text-muted); margin-bottom: var(--space-6); }
-.pin-input-row { position: relative; margin-bottom: var(--space-4); }
-.pin-input {
-  width: 100%; background: var(--color-surface-offset); border: 1px solid var(--color-border);
-  border-radius: var(--radius-md); padding: var(--space-3) var(--space-10) var(--space-3) var(--space-4);
-  font-size: var(--text-base); font-weight: 600; letter-spacing: 0.15em; text-align: center;
-  color: var(--color-text); transition: border-color var(--transition), box-shadow var(--transition);
-}
-.pin-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px oklch(from var(--color-primary) l c h / 0.15); }
-.pin-input.error { border-color: var(--color-error); animation: shake 0.3s ease; }
-.pin-toggle { position: absolute; right: var(--space-3); top: 50%; transform: translateY(-50%); color: var(--color-text-muted); padding: var(--space-1); }
-@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)} }
-.pin-error { font-size: var(--text-xs); color: var(--color-error); margin-bottom: var(--space-4); min-height: 1.2em; }
-/* TOPBAR */
-#topbar {
-  height: var(--topbar-h); background: var(--color-surface); border-bottom: 1px solid var(--color-border);
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 var(--space-4); flex-shrink: 0; z-index: 100;
-}
-.topbar-left { display: flex; align-items: center; gap: var(--space-3); }
-.logo { display: flex; align-items: center; gap: var(--space-2); font-weight: 700; font-size: var(--text-sm); }
-.logo svg { color: var(--color-primary); }
-.topbar-right { display: flex; align-items: center; gap: var(--space-2); }
-/* MAIN AREA */
-.main-area { display: flex; flex: 1; overflow: hidden; }
-/* SIDEBAR */
-#sidebar {
-  width: var(--sidebar-w); background: var(--color-surface); border-right: 1px solid var(--color-border);
-  display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; z-index: 90;
-}
-/* Sidebar header branding block */
-.sidebar-brand {
-  padding: var(--space-5) var(--space-4) var(--space-3);
-  border-bottom: 1px solid var(--color-divider);
-  margin-bottom: var(--space-2);
-}
-.sidebar-brand-name {
-  font-size: var(--text-sm); font-weight: 800; color: var(--color-text); letter-spacing: -0.01em;
-  line-height: 1.2;
-}
-.sidebar-brand-sub {
-  font-size: var(--text-xs); color: var(--color-text-faint); margin-top: 2px;
-}
-.sidebar-section { padding: var(--space-1) var(--space-3) var(--space-3); }
-.sidebar-label {
-  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
-  color: var(--color-text-faint); padding: 0 var(--space-2); margin-bottom: var(--space-2);
-  display: block;
-}
-/* Nav item: left accent bar on active, icon square */
-.nav-item {
-  display: flex; align-items: center; gap: var(--space-3);
-  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-2);
-  font-size: var(--text-sm); color: var(--color-text-muted); cursor: pointer;
-  border-radius: var(--radius-lg);
-  transition: background var(--transition), color var(--transition), box-shadow var(--transition);
-  border: none; background: none; width: 100%; text-align: left;
-  position: relative; font-weight: 500;
-}
-.nav-item:hover { background: var(--color-surface-offset); color: var(--color-text); }
-.nav-item.active {
-  background: var(--color-primary-highlight);
-  color: var(--color-primary);
-  font-weight: 600;
-  box-shadow: inset 3px 0 0 var(--color-primary);
-}
-/* Icon pill */
-.nav-icon {
-  width: 30px; height: 30px; border-radius: var(--radius-md);
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  background: var(--color-surface-offset);
-  color: var(--color-text-faint);
-  transition: background var(--transition), color var(--transition);
-}
-.nav-item:hover .nav-icon { background: var(--color-surface-dynamic); color: var(--color-text-muted); }
-.nav-item.active .nav-icon { background: oklch(from var(--color-primary) l c h / 0.18); color: var(--color-primary); }
-.nav-item svg { flex-shrink: 0; width: 14px; height: 14px; }
-.nav-label { flex: 1; }
-.nav-badge {
-  margin-left: auto; background: var(--color-error-highlight); color: var(--color-error);
-  border-radius: var(--radius-full); padding: 1px 6px; font-size: 10px; font-weight: 700; font-family: var(--font-mono);
-  min-width: 20px; text-align: center;
-}
-.nav-badge.zero { background: var(--color-surface-dynamic); color: var(--color-text-faint); }
-/* Divider between groups */
-.sidebar-divider { height: 1px; background: var(--color-divider); margin: var(--space-2) var(--space-3); }
-.sidebar-footer {
-  margin-top: auto; padding: var(--space-4);
-  border-top: 1px solid var(--color-divider);
-  display: flex; flex-direction: column; gap: var(--space-2);
-}
-.sidebar-stat {
-  display: flex; justify-content: space-between; align-items: center;
-  font-size: var(--text-xs); color: var(--color-text-faint);
-}
-.sidebar-stat-val { font-family: var(--font-mono); font-weight: 600; color: var(--color-text-muted); }
-/* CONTENT */
-#content { flex: 1; overflow-y: auto; background: var(--color-bg); }
-.view { display: none; padding: var(--space-6); max-width: 1200px; }
-.view.active { display: block; }
-/* PAGE HEADER */
-.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-6); gap: var(--space-4); flex-wrap: wrap; }
-.page-title { font-size: var(--text-xl); font-weight: 700; color: var(--color-text); }
-.page-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
-/* KPI STRIP */
-.kpi-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--space-3); margin-bottom: var(--space-6); }
-.kpi-card {
-  background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);
-  padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-1);
-  box-shadow: var(--shadow-sm);
-}
-.kpi-label { font-size: var(--text-xs); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
-.kpi-value { font-size: clamp(1.5rem, 2vw, 2rem); font-weight: 700; font-family: var(--font-mono); color: var(--color-text); line-height: 1.1; }
-.kpi-sub { font-size: var(--text-xs); color: var(--color-text-faint); }
-/* GRID */
-.loc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-4); }
-/* LOCATION CARD */
-.loc-card {
-  background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);
-  padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3);
-  box-shadow: var(--shadow-sm); transition: box-shadow var(--transition), border-color var(--transition);
-}
-.loc-card:hover { box-shadow: var(--shadow-md); border-color: oklch(from var(--color-text) l c h / 0.2); }
-.loc-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
-.loc-card-title { font-size: var(--text-base); font-weight: 600; color: var(--color-text); }
-.status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
-.status-ok { background: var(--color-success); }
-.status-soon { background: var(--color-gold); }
-.status-overdue { background: var(--color-error); }
-.status-never { background: var(--color-text-faint); }
-.loc-meta { display: flex; flex-direction: column; gap: var(--space-1); }
-.loc-meta-row { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--color-text-muted); }
-.loc-meta-row svg { width: 12px; height: 12px; flex-shrink: 0; color: var(--color-text-faint); }
-.loc-card-footer { display: flex; align-items: center; justify-content: space-between; padding-top: var(--space-2); border-top: 1px solid var(--color-divider); }
-.loc-card-actions { display: flex; gap: var(--space-1); }
-/* STATUS CHIP */
-.chip {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 2px var(--space-2); border-radius: var(--radius-full);
-  font-size: var(--text-xs); font-weight: 600;
-}
-.chip-grabado { background: var(--color-primary-highlight); color: var(--color-primary); }
-.chip-en_edicion { background: var(--color-gold-highlight); color: var(--color-gold); }
-.chip-publicado { background: var(--color-success-highlight); color: var(--color-success); }
-.chip-ok { background: var(--color-success-highlight); color: var(--color-success); }
-.chip-soon { background: var(--color-gold-highlight); color: var(--color-gold); }
-.chip-overdue { background: var(--color-error-highlight); color: var(--color-error); }
-.chip-never { background: var(--color-surface-offset); color: var(--color-text-muted); }
-/* BUTTONS */
-.btn {
-  display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: 500; cursor: pointer;
-  border: 1px solid transparent; transition: background var(--transition), color var(--transition), border-color var(--transition), box-shadow var(--transition);
-  white-space: nowrap;
-}
-.btn svg { width: 15px; height: 15px; }
-.btn-primary { background: var(--color-primary); color: white; }
-.btn-primary:hover { background: var(--color-primary-hover); }
-.btn-secondary { background: var(--color-surface); border-color: var(--color-border); color: var(--color-text-muted); }
-.btn-secondary:hover { background: var(--color-surface-offset); color: var(--color-text); border-color: oklch(from var(--color-text) l c h / 0.2); }
-.btn-ghost { color: var(--color-text-muted); }
-.btn-ghost:hover { background: var(--color-surface-offset); color: var(--color-text); }
-.btn-danger { background: var(--color-error-highlight); color: var(--color-error); border-color: oklch(from var(--color-error) l c h / 0.2); }
-.btn-danger:hover { background: var(--color-error); color: white; }
-.btn-sm { padding: var(--space-1) var(--space-2); font-size: var(--text-xs); }
-.icon-btn { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: var(--color-text-faint); transition: background var(--transition), color var(--transition); flex-shrink: 0; }
-.icon-btn:hover { background: var(--color-surface-offset); color: var(--color-text-muted); }
-.icon-btn.danger:hover { background: var(--color-error-highlight); color: var(--color-error); }
-/* REGISTRO TABLE */
-.registro-table { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; }
-.registro-table table { width: 100%; border-collapse: collapse; }
-.registro-table th { background: var(--color-surface-offset); font-size: var(--text-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-text-muted); padding: var(--space-3) var(--space-4); text-align: left; border-bottom: 1px solid var(--color-border); }
-.registro-table td { padding: var(--space-3) var(--space-4); font-size: var(--text-sm); border-bottom: 1px solid var(--color-divider); vertical-align: middle; }
-.registro-table tr:last-child td { border-bottom: none; }
-.registro-table tr:hover td { background: var(--color-surface-offset); }
-.td-actions { display: flex; gap: var(--space-1); justify-content: flex-end; }
-/* MODAL */
-.modal-overlay {
-  position: fixed; inset: 0; z-index: 500; background: oklch(0 0 0 / 0.6); backdrop-filter: blur(4px);
-  display: flex; align-items: center; justify-content: center; padding: var(--space-4);
-  opacity: 0; pointer-events: none; transition: opacity var(--transition);
-}
-.modal-overlay.open { opacity: 1; pointer-events: all; }
-.modal {
-  background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl);
-  width: min(520px, 100%); max-height: 90dvh; overflow-y: auto;
-  box-shadow: var(--shadow-lg); transform: translateY(8px); transition: transform var(--transition);
-}
-.modal-overlay.open .modal { transform: translateY(0); }
-.modal-header { display: flex; align-items: center; justify-content: space-between; padding: var(--space-5) var(--space-6); border-bottom: 1px solid var(--color-border); }
-.modal-title { font-size: var(--text-lg); font-weight: 700; }
-.modal-body { padding: var(--space-6); display: flex; flex-direction: column; gap: var(--space-4); }
-.modal-footer { padding: var(--space-4) var(--space-6); border-top: 1px solid var(--color-border); display: flex; justify-content: flex-end; gap: var(--space-2); }
-/* FORM */
-.field { display: flex; flex-direction: column; gap: var(--space-1); }
-.field label { font-size: var(--text-xs); font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
-.field-input, .field-select, .field-textarea {
-  background: var(--color-surface-offset); border: 1px solid var(--color-border); border-radius: var(--radius-md);
-  padding: var(--space-2) var(--space-3); font-size: var(--text-sm); color: var(--color-text);
-  transition: border-color var(--transition), box-shadow var(--transition);
-}
-.field-input:focus, .field-select:focus, .field-textarea:focus {
-  border-color: var(--color-primary); box-shadow: 0 0 0 3px oklch(from var(--color-primary) l c h / 0.15);
-}
-.field-textarea { resize: vertical; min-height: 80px; }
-.field-select option { background: var(--color-surface); }
-.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
-/* TOAST */
-#toast-container { position: fixed; bottom: var(--space-6); right: var(--space-6); z-index: 900; display: flex; flex-direction: column; gap: var(--space-2); pointer-events: none; }
-.toast {
-  background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);
-  padding: var(--space-3) var(--space-4); font-size: var(--text-sm); box-shadow: var(--shadow-lg);
-  display: flex; align-items: center; gap: var(--space-3); min-width: 260px; max-width: 380px;
-  animation: slideIn 0.25s ease; pointer-events: all;
-}
-.toast.exit { animation: slideOut 0.2s ease forwards; }
-.toast-icon { width: 18px; height: 18px; flex-shrink: 0; }
-.toast-success .toast-icon { color: var(--color-success); }
-.toast-error .toast-icon { color: var(--color-error); }
-.toast-info .toast-icon { color: var(--color-primary); }
-@keyframes slideIn { from{transform:translateX(16px);opacity:0} to{transform:translateX(0);opacity:1} }
-@keyframes slideOut { to{transform:translateX(16px);opacity:0} }
-/* EMPTY STATE */
-.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: var(--space-16) var(--space-8); text-align: center; color: var(--color-text-muted); }
-.empty-state svg { width: 48px; height: 48px; margin-bottom: var(--space-4); color: var(--color-text-faint); }
-.empty-state h3 { font-size: var(--text-lg); font-weight: 600; color: var(--color-text); margin-bottom: var(--space-2); }
-.empty-state p { font-size: var(--text-sm); color: var(--color-text-muted); max-width: 36ch; margin-bottom: var(--space-6); }
-/* SKELETON */
-@keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
-.skeleton { background: linear-gradient(90deg,var(--color-surface-offset) 25%,var(--color-surface-dynamic) 50%,var(--color-surface-offset) 75%); background-size: 200% 100%; animation: shimmer 1.5s ease-in-out infinite; border-radius: var(--radius-sm); }
-.skel-card { height: 120px; border-radius: var(--radius-lg); }
-/* VENCER VIEW */
-.vencer-list { display: flex; flex-direction: column; gap: var(--space-3); }
-.vencer-item { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-4); display: flex; align-items: center; gap: var(--space-4); box-shadow: var(--shadow-sm); }
-.vencer-days { font-size: clamp(1.5rem,2vw,2rem); font-weight: 700; font-family: var(--font-mono); min-width: 56px; text-align: center; line-height: 1; }
-.vencer-days.overdue { color: var(--color-error); }
-.vencer-days.soon { color: var(--color-gold); }
-.vencer-days.ok { color: var(--color-success); }
-.vencer-info { flex: 1; }
-.vencer-name { font-size: var(--text-base); font-weight: 600; margin-bottom: 4px; }
-.vencer-sub { font-size: var(--text-xs); color: var(--color-text-muted); }
-/* RUTA VIEW */
-.ruta-toolbar{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin-bottom:var(--space-5);flex-wrap:wrap}
-.ruta-search{min-width:240px;max-width:340px;width:100%;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-2)var(--space-4);color:var(--color-text)}
-.ruta-summary{font-size:var(--text-xs);color:var(--color-text-muted);display:flex;gap:var(--space-3);align-items:center;flex-wrap:wrap}
-.ruta-summary span strong{color:var(--color-text);font-family:var(--font-mono)}
-.ruta-actions-panel{display:flex;gap:var(--space-2);flex-wrap:wrap;margin-bottom:var(--space-4)}
-.ruta-layout{display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:var(--space-4);align-items:start}
-.ruta-board,.ruta-builder{background:var(--color-surface);border:1px solid var(--color-border);border-radius:18px;box-shadow:var(--shadow-sm)}
-.ruta-board{padding:var(--space-4)}
-.ruta-board-head{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-3);margin-bottom:var(--space-4)}
-.ruta-board-title{font-size:var(--text-lg);font-weight:700;color:var(--color-text)}
-.ruta-board-sub{font-size:var(--text-xs);color:var(--color-text-muted);margin-top:4px}
-.ruta-weeklist{display:flex;flex-direction:column;gap:var(--space-3)}
-.ruta-week-item{border:1px solid var(--color-border);background:var(--color-surface-offset);border-radius:var(--radius-lg);padding:var(--space-3)}
-.ruta-week-item.current{border-color:color-mix(in oklab,var(--color-primary) 55%, var(--color-border));box-shadow:inset 3px 0 0 var(--color-primary)}
-.ruta-week-top{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-3);margin-bottom:var(--space-2)}
-.ruta-week-kicker{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--color-primary)}
-.ruta-week-title{font-size:var(--text-base);font-weight:700;color:var(--color-text)}
-.ruta-week-meta{font-size:var(--text-xs);text-align:right;color:var(--color-text-faint)}
-.ruta-stoplist{display:flex;flex-direction:column;gap:8px;margin-top:var(--space-3)}
-.ruta-stop{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:10px 12px;border-radius:12px;background:var(--color-surface);border:1px solid transparent}
-.ruta-stop:hover{border-color:var(--color-border)}
-.ruta-stop-main{display:flex;flex-direction:column;gap:3px;min-width:0}
-.ruta-stop-name{font-size:var(--text-sm);font-weight:600;color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ruta-stop-sub{font-size:var(--text-xs);color:var(--color-text-muted)}
-.ruta-stop-actions{display:flex;align-items:center;gap:var(--space-2);flex-shrink:0}
-.ruta-pill{padding:6px 10px;border-radius:999px;font-size:11px;font-weight:700;border:1px solid var(--color-border);background:var(--color-surface-offset);color:var(--color-text-muted)}
-.ruta-pill.active{background:var(--color-primary-highlight);color:var(--color-primary);border-color:color-mix(in oklab,var(--color-primary) 35%, var(--color-border))}
-.ruta-builder{padding:var(--space-4);display:flex;flex-direction:column;gap:var(--space-4)}
-.ruta-builder-head{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-3)}
-.ruta-builder-title{font-size:var(--text-lg);font-weight:700;color:var(--color-text)}
-.ruta-builder-sub{font-size:var(--text-xs);color:var(--color-text-muted);margin-top:4px}
-.ruta-dropzone{min-height:120px;border:1px dashed var(--color-border);border-radius:18px;padding:var(--space-3);background:var(--color-surface-offset)}
-.ruta-dropzone.dragover{border-color:var(--color-primary);background:var(--color-primary-highlight)}
-.ruta-route-list{display:flex;flex-direction:column;gap:8px;min-height:64px}
-.ruta-route-item{display:flex;align-items:center;gap:var(--space-2);padding:10px 12px;border-radius:12px;background:var(--color-surface);border:1px solid var(--color-border);cursor:grab}
-.ruta-route-item:active{cursor:grabbing}
-.ruta-grip{width:18px;height:18px;color:var(--color-text-faint);flex-shrink:0}
-.ruta-route-name{flex:1;min-width:0;font-size:var(--text-sm);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ruta-route-meta{font-size:var(--text-xs);color:var(--color-text-faint);font-family:var(--font-mono)}
-.ruta-route-actions{display:flex;gap:var(--space-2);justify-content:flex-end;flex-wrap:wrap}
-.ruta-mini-note{font-size:var(--text-xs);color:var(--color-text-muted)}
-@media (max-width: 980px){.ruta-layout{grid-template-columns:1fr}.ruta-board{order:2}.ruta-builder{order:1}}      <!-- ── VIEW: MI RUTA ── -->
+</head>
+<body>
+
+<!-- ═══ PIN GATE ═══════════════════════════════════════════════════════════ -->
+<div id="pin-gate">
+  <div class="pin-box">
+    <div class="pin-logo">
+      <svg width="36" height="36" viewBox="0 0 32 32" fill="none" aria-label="Logo Obras">
+        <rect width="32" height="32" rx="8" fill="currentColor" opacity="0.12"/>
+        <path d="M8 24L8 12L16 6L24 12L24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <rect x="13" y="17" width="6" height="7" rx="1" stroke="currentColor" stroke-width="2" fill="none"/>
+        <circle cx="20" cy="10" r="3" stroke="currentColor" stroke-width="2" fill="none"/>
+        <circle cx="20" cy="10" r="1" fill="currentColor"/>
+      </svg>
+      <span class="pin-logo-text">Grabación Obras</span>
+    </div>
+    <p class="pin-title">Ingresa el PIN</p>
+    <p class="pin-subtitle">Acceso al sistema de seguimiento</p>
+    <div class="pin-input-row">
+      <input type="password" id="pin-input" class="pin-input" placeholder="••••" maxlength="10" autocomplete="current-password">
+      <button class="icon-btn pin-toggle" onclick="togglePinVis()" aria-label="Mostrar PIN">
+        <svg id="pin-eye" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+    </div>
+    <p id="pin-error" class="pin-error"></p>
+    <p class="pin-hint">PIN por defecto: 1234</p>
+    <button class="btn btn-primary pin-enter-btn" onclick="checkPin()">Entrar</button>
+  </div>
+</div>
+
+<!-- ═══ APP SHELL ═══════════════════════════════════════════════════════════ -->
+<div id="app" style="display:none">
+
+  <!-- TOPBAR -->
+  <header id="topbar">
+    <div class="topbar-left">
+      <button class="icon-btn mobile-menu-btn" onclick="toggleSidebar()" aria-label="Menú">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+      <div class="logo">
+        <svg width="22" height="22" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <rect width="32" height="32" rx="8" fill="currentColor" opacity="0.12"/>
+          <path d="M8 24L8 12L16 6L24 12L24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <rect x="13" y="17" width="6" height="7" rx="1" stroke="currentColor" stroke-width="2" fill="none"/>
+          <circle cx="20" cy="10" r="3" stroke="currentColor" stroke-width="2" fill="none"/>
+          <circle cx="20" cy="10" r="1" fill="currentColor"/>
+        </svg>
+        <span>Grabación Obras</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span id="sync-indicator" class="sync-indicator sync-offline">⬤ offline</span>
+      <button class="icon-btn" onclick="refreshAll()" aria-label="Recargar datos" title="Recargar">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        </svg>
+      </button>
+      <button class="icon-btn" data-theme-toggle aria-label="Cambiar tema">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+      <button class="btn btn-ghost btn-sm topbar-logout" onclick="logout()">Salir</button>
+    </div>
+  </header>
+
+  <div class="main-area">
+    <!-- SIDEBAR -->
+    <nav id="sidebar" aria-label="Navegación principal">
+      <div class="sidebar-brand">
+        <div class="sidebar-brand-name">Grabación Obras</div>
+        <div class="sidebar-brand-sub">Seguimiento de grabaciones</div>
+      </div>
+
+      <div class="sidebar-section">
+        <span class="sidebar-label">Principal</span>
+        <button class="nav-item active" data-view="locaciones" onclick="navigate('locaciones')">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          </span>
+          <span class="nav-label">Locaciones</span>
+        </button>
+        <button class="nav-item" data-view="vencer" onclick="navigate('vencer')">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </span>
+          <span class="nav-label">Por vencer</span>
+          <span class="nav-badge" id="badge-vencer">0</span>
+        </button>
+        <button class="nav-item" data-view="registro" onclick="navigate('registro')">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          </span>
+          <span class="nav-label">Registro</span>
+        </button>
+      </div>
+
+      <div class="sidebar-divider"></div>
+
+      <div class="sidebar-section">
+        <span class="sidebar-label">Planificación</span>
+        <button class="nav-item" data-view="ruta" onclick="navigate('ruta')">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 6h10M14 18H8.5a3.5 3.5 0 0 1 0-7H19a3.5 3.5 0 0 0 0-7H10"/></svg>
+          </span>
+          <span class="nav-label">Mi ruta</span>
+          <span class="nav-badge nav-badge-blue" id="badge-ruta">0</span>
+        </button>
+        <button class="nav-item" data-view="corriente" onclick="navigate('corriente')">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </span>
+          <span class="nav-label">Al corriente</span>
+        </button>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-stat">
+          <span>Locaciones</span>
+          <span class="sidebar-stat-val" id="sidebar-loc-count">—</span>
+        </div>
+        <div class="sidebar-stat">
+          <span>Versión</span>
+          <span class="sidebar-stat-val">1.1 MVP</span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- CONTENT -->
+    <main id="content">
+
+      <!-- ── VIEW: LOCACIONES ─────────────────────────────────── -->
+      <section class="view active" id="view-locaciones">
+        <div class="page-header">
+          <h1 class="page-title">Locaciones</h1>
+          <div class="page-actions">
+            <button class="btn btn-secondary btn-sm" onclick="exportCSV('locaciones')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Exportar
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="openLocModal()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Nueva locación
+            </button>
+          </div>
+        </div>
+        <div class="kpi-strip" id="kpi-strip"></div>
+        <div class="filters">
+          <input type="search" class="search-input" id="loc-search" placeholder="Buscar locación…" oninput="renderLocaciones()">
+          <button class="filter-btn active" data-filter="todas" onclick="setLocFilter('todas',this)">Todas</button>
+          <button class="filter-btn" data-filter="vencidas" onclick="setLocFilter('vencidas',this)">Vencidas</button>
+          <button class="filter-btn" data-filter="pronto" onclick="setLocFilter('pronto',this)">Próximas</button>
+          <button class="filter-btn" data-filter="ok" onclick="setLocFilter('ok',this)">Al corriente</button>
+          <button class="filter-btn" data-filter="nunca" onclick="setLocFilter('nunca',this)">Sin grabar</button>
+        </div>
+        <div id="loc-grid" class="loc-grid"></div>
+      </section>
+
+      <!-- ── VIEW: POR VENCER ─────────────────────────────────── -->
+      <section class="view" id="view-vencer">
+        <div class="page-header">
+          <h1 class="page-title">Por vencer</h1>
+        </div>
+        <div id="vencer-list" class="vencer-list"></div>
+      </section>
+
+      <!-- ── VIEW: REGISTRO ───────────────────────────────────── -->
+      <section class="view" id="view-registro">
+        <div class="page-header">
+          <h1 class="page-title">Registro</h1>
+          <div class="page-actions">
+            <button class="btn btn-secondary btn-sm" onclick="exportCSV('registro')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Exportar
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="openCheckinModal()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Nuevo check-in
+            </button>
+          </div>
+        </div>
+        <div class="filters">
+          <input type="search" class="search-input" id="reg-search" placeholder="Buscar…" oninput="renderRegistro()">
+          <button class="filter-btn active" data-filter="todos" onclick="setRegFilter('todos',this)">Todos</button>
+          <button class="filter-btn" data-filter="grabado" onclick="setRegFilter('grabado',this)">Grabado</button>
+          <button class="filter-btn" data-filter="en_edicion" onclick="setRegFilter('en_edicion',this)">En edición</button>
+          <button class="filter-btn" data-filter="publicado" onclick="setRegFilter('publicado',this)">Publicado</button>
+        </div>
+        <div class="registro-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Locación</th><th>Fecha</th><th>Estado</th><th>Notas</th><th>Link</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="registro-tbody"></tbody>
+          </table>
+        </div>
+        <div id="registro-empty" class="empty-state" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <h3>Sin registros</h3>
+          <p>Agrega tu primer check-in para comenzar el seguimiento.</p>
+          <button class="btn btn-primary" onclick="openCheckinModal()">Nuevo check-in</button>
+        </div>
+      </section>
+
+      <!-- ── VIEW: MI RUTA ────────────────────────────────────── -->
       <section class="view" id="view-ruta">
         <div class="page-header">
           <div>
             <h1 class="page-title">Mi Ruta</h1>
-            <p style="font-size:var(--text-sm);color:var(--color-text-muted);margin-top:var(--space-2)">Crea rutas sugeridas, edítalas y ordénalas como realmente trabajas en campo.</p>
-          </div>
-          <div class="page-actions" id="ruta-actions" style="display:none">
-            <button class="btn btn-secondary btn-sm" onclick="duplicateRuta()">Duplicar ruta</button>
-            <button class="btn btn-secondary btn-sm" onclick="clearRuta()">Limpiar</button>
-            <button class="btn btn-primary btn-sm" onclick="exportRuta()">Compartir ruta</button>
+            <p class="page-subtitle">Planea y optimiza tus visitas de grabación</p>
           </div>
         </div>
-        <div class="ruta-toolbar">
-          <input type="search" id="ruta-search" class="ruta-search" placeholder="Buscar locación..." oninput="renderRuta()">
-          <div class="ruta-summary">
-            <span>Seleccionadas: <strong id="ruta-count">0</strong></span>
-            <span>Rutas guardadas: <strong id="ruta-saved-count">1</strong></span>
+
+        <!-- Tabs dentro de Ruta -->
+        <div class="ruta-tabs">
+          <button class="ruta-tab active" data-tab="sugerida" onclick="switchRutaTab('sugerida', this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Ruta sugerida
+          </button>
+          <button class="ruta-tab" data-tab="crear" onclick="switchRutaTab('crear', this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Crear ruta
+          </button>
+          <button class="ruta-tab" data-tab="semanas" onclick="switchRutaTab('semanas', this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Por semana
+          </button>
+        </div>
+
+        <!-- Tab: Ruta Sugerida -->
+        <div class="ruta-tab-panel active" id="ruta-panel-sugerida">
+          <div class="sugerida-header">
+            <div class="sugerida-info">
+              <div class="sugerida-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                Generada automáticamente
+              </div>
+              <p class="sugerida-desc">Las obras más urgentes de esta semana, ordenadas por prioridad.</p>
+            </div>
+            <div class="sugerida-actions">
+              <button class="btn btn-secondary btn-sm" onclick="exportRuta('sugerida')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                Compartir
+              </button>
+            </div>
+          </div>
+          <div id="ruta-sugerida-list" class="ruta-sugerida-list"></div>
+        </div>
+
+        <!-- Tab: Crear ruta -->
+        <div class="ruta-tab-panel" id="ruta-panel-crear">
+          <div class="crear-ruta-layout">
+            <!-- Panel izquierdo: disponibles -->
+            <div class="crear-ruta-pool">
+              <div class="crear-panel-header">
+                <h3>Locaciones disponibles</h3>
+                <input type="search" class="search-input" id="ruta-pool-search" placeholder="Buscar…" oninput="renderRutaPool()">
+              </div>
+              <div id="ruta-pool-list" class="ruta-pool-list"></div>
+            </div>
+            <!-- Panel derecho: mi ruta -->
+            <div class="crear-ruta-selected">
+              <div class="crear-panel-header">
+                <h3>Mi ruta del día <span class="ruta-count-badge" id="ruta-count-badge">0</span></h3>
+                <div class="crear-header-actions">
+                  <button class="btn btn-ghost btn-sm" onclick="clearRuta()" title="Limpiar ruta">Limpiar</button>
+                  <button class="btn btn-primary btn-sm" onclick="exportRuta('custom')" id="ruta-share-btn" disabled>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                    Compartir ruta
+                  </button>
+                </div>
+              </div>
+              <div id="ruta-selected-order" class="ruta-selected-order">
+                <div class="ruta-selected-empty" id="ruta-selected-empty">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 6h10M14 18H8.5a3.5 3.5 0 0 1 0-7H19a3.5 3.5 0 0 0 0-7H10"/></svg>
+                  <p>Agrega locaciones desde la lista para construir tu ruta</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="ruta-actions-panel">
-          <button class="btn btn-primary btn-sm" onclick="loadSuggestedRoute()">Ruta sugerida</button>
-          <button class="btn btn-secondary btn-sm" onclick="newRuta()">Nueva ruta</button>
-          <button class="btn btn-secondary btn-sm" onclick="saveCurrentRuta()">Guardar ruta</button>
-          <select id="ruta-select" class="search-input" style="min-width:220px;max-width:none" onchange="switchRuta(this.value)"></select>
-        </div>
-        <div class="ruta-layout">
-          <div class="ruta-board">
-            <div class="ruta-board-head">
-              <div>
-                <div class="ruta-board-title">Rutas guardadas</div>
-                <div class="ruta-board-sub">Selecciona una ruta existente o crea una nueva.</div>
-              </div>
-            </div>
-            <div id="ruta-weeklist" class="ruta-weeklist"></div>
-          </div>
-          <div class="ruta-builder">
-            <div class="ruta-builder-head">
-              <div>
-                <div class="ruta-builder-title">Constructor de ruta</div>
-                <div class="ruta-builder-sub">Arrastra, agrega o quita locaciones. Orden manual incluido.</div>
-              </div>
-              <div class="ruta-route-actions">
-                <button class="btn btn-secondary btn-sm" onclick="sortRouteByPriority()">Ordenar sugerida</button>
-                <button class="btn btn-secondary btn-sm" onclick="resetCurrentRoute()">Restablecer</button>
-              </div>
-            </div>
-            <div id="ruta-dropzone" class="ruta-dropzone" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="dropRuta(event)">
-              <div class="ruta-mini-note" style="margin-bottom:10px">Suelta aquí las locaciones para armar la ruta.</div>
-              <div id="ruta-route-list" class="ruta-route-list"></div>
+
+        <!-- Tab: Por semana -->
+        <div class="ruta-tab-panel" id="ruta-panel-semanas">
+          <div class="ruta-toolbar">
+            <input type="search" id="ruta-search" class="search-input ruta-search" placeholder="Buscar locación…" oninput="renderRutaSemanas()">
+            <div class="ruta-summary">
+              <span>Semanas: <strong id="ruta-weeks-count">0</strong></span>
             </div>
           </div>
+          <div id="ruta-timeline" class="ruta-timeline"></div>
         </div>
       </section>
-// ─── RUTA ────────────────────────────────────────────────────────────────────
-let routeLibrary = [];
-let currentRouteId = 'suggested';
-let routeCounter = 1;
 
-function todayKey(d){ return new Date(d + 'T00:00:00'); }
-function fmtMonDay(d){ const m=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']; d=todayKey(d); return `${d.getDate()} ${m[d.getMonth()]}`; }
-function plannedDate(loc){ if(!loc.last_checkin) return today(); const d=todayKey(loc.last_checkin); d.setDate(d.getDate() + (loc.freq_days || 15)); return d.toISOString().slice(0,10); }
-function routeScore(loc){ if(!loc.last_checkin) return 9999; const due = daysUntilDue(loc); return due === null ? 9999 : due; }
-function cloneRoute(route){ return { id: route.id, name: route.name, items: [...route.items] }; }
-
-function buildSuggestedRoute(){
-  const sorted = [...locations].map(l => ({...l, planDate: plannedDate(l), score: routeScore(l)}))
-    .sort((a,b)=> a.score - b.score || a.name.localeCompare(b.name));
-  const weeks = {};
-  sorted.forEach(loc => { const wk = startOfWeek(loc.planDate).toISOString().slice(0,10); (weeks[wk] ||= []).push(loc); });
-  const keys = Object.keys(weeks).sort();
-  const items = sorted.map(l => l.id).slice(0, Math.min(8, sorted.length));
-  return { id: 'suggested', name: 'Ruta sugerida', items, weekKeys: keys };
-}
-
-function loadRouteLibrary(){
-  const stored = localStorage.getItem('route-library');
-  if (stored) {
-    try { routeLibrary = JSON.parse(stored); } catch { routeLibrary = []; }
-  }
-  if (!routeLibrary.length) routeLibrary = [buildSuggestedRoute()];
-  currentRouteId = routeLibrary[0].id;
-}
-
-function saveRouteLibrary(){ localStorage.setItem('route-library', JSON.stringify(routeLibrary)); }
-
-function currentRoute(){ return routeLibrary.find(r => r.id === currentRouteId) || routeLibrary[0]; }
-
-function syncRouteSelect(){
-  const sel = document.getElementById('ruta-select');
-  if (!sel) return;
-  sel.innerHTML = routeLibrary.map(r => `<option value="${r.id}">${esc(r.name)}</option>`).join('');
-  sel.value = currentRouteId;
-  const saved = document.getElementById('ruta-saved-count');
-  if (saved) saved.textContent = routeLibrary.length;
-}
-
-function newRuta(){
-  const id = 'ruta-' + Date.now();
-  routeLibrary.unshift({ id, name: 'Nueva ruta ' + routeCounter++, items: [] });
-  currentRouteId = id;
-  saveRouteLibrary();
-  syncRouteSelect();
-  renderRuta();
-}
-
-function switchRuta(id){ currentRouteId = id; renderRuta(); }
-
-function loadSuggestedRoute(){
-  const suggested = buildSuggestedRoute();
-  const existing = routeLibrary.find(r => r.id === 'suggested');
-  if (existing) existing.items = suggested.items;
-  else routeLibrary.unshift(suggested);
-  currentRouteId = 'suggested';
-  saveRouteLibrary();
-  syncRouteSelect();
-  renderRuta();
-}
-
-function saveCurrentRuta(){
-  const r = currentRoute();
-  if (!r) return;
-  saveRouteLibrary();
-  showToast('Ruta guardada', 'success');
-}
-
-function duplicateRuta(){
-  const r = currentRoute();
-  if (!r) return;
-  const copy = { id: 'ruta-' + Date.now(), name: r.name + ' copia', items: [...r.items] };
-  routeLibrary.unshift(copy);
-  currentRouteId = copy.id;
-  saveRouteLibrary();
-  syncRouteSelect();
-  renderRuta();
-}
-
-function clearRuta(){ const r=currentRoute(); if(r){ r.items=[]; saveRouteLibrary(); renderRuta(); } }
-function resetCurrentRoute(){ loadSuggestedRoute(); }
-function sortRouteByPriority(){ const r=currentRoute(); if(!r) return; r.items.sort((a,b)=> routeScore(locations.find(x=>x.id===a)||{}) - routeScore(locations.find(x=>x.id===b)||{})); saveRouteLibrary(); renderRuta(); }
-
-function toggleRuta(id){ const r=currentRoute(); if(!r) return; const i=r.items.indexOf(id); if(i>-1) r.items.splice(i,1); else r.items.push(id); saveRouteLibrary(); renderRuta(); }
-function removeRouteItem(id){ const r=currentRoute(); if(!r) return; r.items=r.items.filter(x=>x!==id); saveRouteLibrary(); renderRuta(); }
-function moveRouteItem(id, dir){ const r=currentRoute(); if(!r) return; const i=r.items.indexOf(id); const j=i+dir; if(i<0||j<0||j>=r.items.length) return; [r.items[i], r.items[j]]=[r.items[j], r.items[i]]; saveRouteLibrary(); renderRuta(); }
-function dropRuta(e){ e.preventDefault(); e.currentTarget.classList.remove('dragover'); const id = e.dataTransfer.getData('text/plain'); if(id) toggleRuta(id); }
-function dragRutaStart(e,id){ e.dataTransfer.setData('text/plain', id); }
-
-function renderRouteSuggestions(){
-  const q = (document.getElementById('ruta-search')?.value || '').toLowerCase();
-  const r = currentRoute();
-  const filtered = locations.filter(loc => !q || loc.name.toLowerCase().includes(q) || (loc.address||'').toLowerCase().includes(q));
-  const weeks = {};
-  filtered.forEach(loc => {
-    const pd = plannedDate(loc);
-    const wk = startOfWeek(pd).toISOString().slice(0,10);
-    (weeks[wk] ||= []).push({...loc, planDate: pd});
-  });
-  const keys = Object.keys(weeks).sort();
-  const weeklist = document.getElementById('ruta-weeklist');
-  if (document.getElementById('ruta-count')) document.getElementById('ruta-count').textContent = (r?.items.length || 0);
-  if (document.getElementById('ruta-saved-count')) document.getElementById('ruta-saved-count').textContent = routeLibrary.length;
-  if (!keys.length) { weeklist.innerHTML = '<div class="empty-state"><h3>Sin resultados</h3><p>No hay locaciones que coincidan con la búsqueda.</p></div>'; return; }
-  const currentWeek = startOfWeek(today()).toISOString().slice(0,10);
-  weeklist.innerHTML = keys.map(k => {
-    const items = weeks[k].sort((a,b)=> a.planDate.localeCompare(b.planDate) || a.name.localeCompare(b.name));
-    const head = items[0];
-    const due = daysUntilDue(head);
-    const marker = k === currentWeek ? 'current' : (due !== null && due < 0 ? 'overdue' : (due !== null && due <=3 ? 'soon' : 'ok'));
-    return `<div class="ruta-week-item ${k===currentWeek?'current':''}">
-      <div class="ruta-week-top">
-        <div>
-          <div class="ruta-week-kicker">${k===currentWeek ? 'Esta semana' : 'Semana ' + fmtMonDay(k)}</div>
-          <div class="ruta-week-title">${items.length} locaciones</div>
+      <!-- ── VIEW: AL CORRIENTE ──────────────────────────────── -->
+      <section class="view" id="view-corriente">
+        <div class="page-header">
+          <h1 class="page-title">Al corriente</h1>
         </div>
-        <div class="ruta-week-meta"><span class="${marker==='overdue'?'warn':marker==='soon'?'soon':'ok'}">${k===currentWeek ? 'Prioridad alta' : fmtDate(head.planDate)}</span></div>
+        <p class="page-subtitle" style="margin-bottom:var(--space-6)">Locaciones grabadas recientemente y dentro de su frecuencia.</p>
+        <div id="corriente-grid" class="corriente-grid"></div>
+        <div id="corriente-empty" class="empty-state" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <h3>Ninguna al corriente aún</h3>
+          <p>Agrega check-ins para ver qué locaciones están al día.</p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- ═══ MODALES ════════════════════════════════════════════════════════════ -->
+
+<!-- Modal: Nueva / Editar Locación -->
+<div class="modal-overlay" id="modal-loc" role="dialog" aria-modal="true" aria-labelledby="modal-loc-title" onclick="closeOnOverlay(event,'modal-loc')">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modal-loc-title">Nueva locación</h2>
+      <button class="icon-btn" onclick="closeModal('modal-loc')" aria-label="Cerrar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="loc-id">
+      <div class="field">
+        <label for="loc-name">Nombre *</label>
+        <input type="text" id="loc-name" class="field-input" placeholder="Ej. Academia Cenit" required>
       </div>
-      <div class="ruta-stoplist">
-        ${items.map(loc => {
-          const selected = r?.items.includes(loc.id);
-          const st = locStatus(loc);
-          const text = st === 'never' ? 'Sin grabar' : st === 'overdue' ? 'Vencida' : st === 'soon' ? 'Por vencer' : 'Al corriente';
-          return `<div class="ruta-stop" draggable="true" ondragstart="dragRutaStart(event,'${loc.id}')">
-            <div class="ruta-stop-main">
-              <div class="ruta-stop-name">${esc(loc.name)}</div>
-              <div class="ruta-stop-sub">${text} · ${fmtDate(loc.planDate)}</div>
-            </div>
-            <div class="ruta-stop-actions">
-              <button class="ruta-pill ${selected ? 'active':''}" onclick="toggleRuta('${loc.id}')">${selected ? 'Quitar' : 'Agregar'}</button>
-              <button class="icon-btn" onclick="moveRouteItem('${loc.id}',-1)" title="Subir">↑</button>
-              <button class="icon-btn" onclick="moveRouteItem('${loc.id}',1)" title="Bajar">↓</button>
-            </div>
-          </div>`;
-        }).join('')}
+      <div class="field-row">
+        <div class="field">
+          <label for="loc-responsable">Responsable</label>
+          <input type="text" id="loc-responsable" class="field-input" placeholder="Nombre">
+        </div>
+        <div class="field">
+          <label for="loc-freq">Frecuencia (días) *</label>
+          <input type="number" id="loc-freq" class="field-input" min="1" max="365" value="15">
+        </div>
       </div>
-    </div>`;
-  }).join('');
-  const routeList = document.getElementById('ruta-route-list');
-  if (routeList && r) {
-    routeList.innerHTML = r.items.length ? r.items.map((id,i)=>{
-      const loc = locations.find(x=>x.id===id); if(!loc) return '';
-      return `<div class="ruta-route-item" draggable="true" ondragstart="dragRutaStart(event,'${id}')">
-        <svg class="ruta-grip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="6" r="1"/><circle cx="16" cy="6" r="1"/><circle cx="8" cy="12" r="1"/><circle cx="16" cy="12" r="1"/><circle cx="8" cy="18" r="1"/><circle cx="16" cy="18" r="1"/></svg>
-        <div class="ruta-route-name">${i+1}. ${esc(loc.name)}</div>
-        <div class="ruta-route-meta">${fmtDate(plannedDate(loc))}</div>
-        <button class="icon-btn danger" onclick="removeRouteItem('${id}')" title="Eliminar">×</button>
-      </div>`;
-    }).join('') : '<div class="ruta-mini-note">Aún no agregas locaciones a esta ruta.</div>';
-  }
-  const listEl = document.getElementById('ruta-selected-list');
-  const actionsEl = document.getElementById('ruta-actions');
-  if (r?.items.length) { if(listEl) listEl.style.display='block'; if(actionsEl) actionsEl.style.display='flex'; }
-  else { if(listEl) listEl.style.display='none'; if(actionsEl) actionsEl.style.display='none'; }
-}
+      <div class="field">
+        <label for="loc-address">Dirección</label>
+        <input type="text" id="loc-address" class="field-input" placeholder="Calle, colonia, ciudad">
+      </div>
+      <div class="field">
+        <label for="loc-notion">Link Notion / Drive</label>
+        <input type="url" id="loc-notion" class="field-input" placeholder="https://…">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-loc')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveLoc()">Guardar</button>
+    </div>
+  </div>
+</div>
 
-function renderRuta(){ loadRouteLibrary(); syncRouteSelect(); renderRouteSuggestions(); }
+<!-- Modal: Check-in -->
+<div class="modal-overlay" id="modal-checkin" role="dialog" aria-modal="true" aria-labelledby="modal-checkin-title" onclick="closeOnOverlay(event,'modal-checkin')">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modal-checkin-title">Nuevo check-in</h2>
+      <button class="icon-btn" onclick="closeModal('modal-checkin')" aria-label="Cerrar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ci-id">
+      <div class="field-row">
+        <div class="field">
+          <label for="ci-loc">Locación *</label>
+          <select id="ci-loc" class="field-select"><option value="">— Selecciona —</option></select>
+        </div>
+        <div class="field">
+          <label for="ci-date">Fecha *</label>
+          <input type="date" id="ci-date" class="field-input">
+        </div>
+      </div>
+      <div class="field">
+        <label for="ci-estado">Estado *</label>
+        <select id="ci-estado" class="field-select">
+          <option value="grabado">🎥 Grabado</option>
+          <option value="en_edicion">✂️ En edición</option>
+          <option value="publicado">✅ Publicado</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="ci-link">Link (Drive / YouTube / etc.)</label>
+        <input type="url" id="ci-link" class="field-input" placeholder="https://…">
+      </div>
+      <div class="field">
+        <label for="ci-notes">Notas</label>
+        <textarea id="ci-notes" class="field-textarea" placeholder="Comentarios adicionales…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-checkin')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveCheckin()">Guardar</button>
+    </div>
+  </div>
+</div>
 
-function exportRuta(){ const r=currentRoute(); if(!r) return; const text=r.items.map((id,i)=>`${i+1}. ${getLocName(id)}`).join('
-'); if(navigator.share) navigator.share({title:r.name,text}); else navigator.clipboard.writeText(text).then(()=>showToast('Ruta copiada', 'success')); }
+<!-- Confirm Dialog -->
+<div class="confirm-overlay" id="confirm-overlay" onclick="closeOnOverlay(event,'confirm-overlay')">
+  <div class="confirm-box">
+    <h3 id="confirm-title">¿Confirmar acción?</h3>
+    <p id="confirm-msg">Esta acción no se puede deshacer.</p>
+    <div class="confirm-actions">
+      <button class="btn btn-ghost" onclick="closeConfirm()">Cancelar</button>
+      <button class="btn btn-danger" id="confirm-ok-btn">Eliminar</button>
+    </div>
+  </div>
+</div>
 
-<script>PE html>
-<html lang="es" data-theme="dark">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Grabación Obras</title>
-<meta name="theme-color" content="#4f98a3">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Toast Container -->
+<div id="toast-container" aria-live="polite"></div>
+
+<script src="app.js"></script>
 </body>
 </html>
