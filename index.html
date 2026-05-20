@@ -10,7 +10,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
-<!-- Supabase CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -19,7 +18,7 @@
 <div id="pin-gate">
   <div class="pin-box">
     <div class="pin-logo">
-      <svg width="36" height="36" viewBox="0 0 32 32" fill="none" aria-label="Logo Obras">
+      <svg width="36" height="36" viewBox="0 0 32 32" fill="none">
         <rect width="32" height="32" rx="8" fill="currentColor" opacity="0.12"/>
         <path d="M8 24L8 12L16 6L24 12L24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
         <rect x="13" y="17" width="6" height="7" rx="1" stroke="currentColor" stroke-width="2" fill="none"/>
@@ -46,8 +45,6 @@
 
 <!-- ═══ APP SHELL ═══════════════════════════════════════════════════════════ -->
 <div id="app" style="display:none">
-
-  <!-- TOPBAR -->
   <header id="topbar">
     <div class="topbar-left">
       <button class="icon-btn mobile-menu-btn" onclick="toggleSidebar()" aria-label="Menú">
@@ -56,7 +53,7 @@
         </svg>
       </button>
       <div class="logo">
-        <svg width="22" height="22" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
           <rect width="32" height="32" rx="8" fill="currentColor" opacity="0.12"/>
           <path d="M8 24L8 12L16 6L24 12L24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
           <rect x="13" y="17" width="6" height="7" rx="1" stroke="currentColor" stroke-width="2" fill="none"/>
@@ -68,22 +65,17 @@
     </div>
     <div class="topbar-right">
       <span id="sync-indicator" class="sync-indicator sync-offline">⬤ offline</span>
-      <button class="icon-btn" onclick="refreshAll()" aria-label="Recargar datos" title="Recargar">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-        </svg>
+      <button class="icon-btn" onclick="refreshAll()" title="Recargar">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
       </button>
       <button class="icon-btn" data-theme-toggle aria-label="Cambiar tema">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-        </svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       </button>
       <button class="btn btn-ghost btn-sm topbar-logout" onclick="logout()">Salir</button>
     </div>
   </header>
 
   <div class="main-area">
-    <!-- SIDEBAR -->
     <nav id="sidebar" aria-label="Navegación principal">
       <div class="sidebar-brand">
         <div class="sidebar-brand-name">Grabación Obras</div>
@@ -93,22 +85,16 @@
       <div class="sidebar-section">
         <span class="sidebar-label">Principal</span>
         <button class="nav-item active" data-view="locaciones" onclick="navigate('locaciones')">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-          </span>
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span>
           <span class="nav-label">Locaciones</span>
         </button>
         <button class="nav-item" data-view="vencer" onclick="navigate('vencer')">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          </span>
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
           <span class="nav-label">Por vencer</span>
           <span class="nav-badge" id="badge-vencer">0</span>
         </button>
         <button class="nav-item" data-view="registro" onclick="navigate('registro')">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-          </span>
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
           <span class="nav-label">Registro</span>
         </button>
       </div>
@@ -118,36 +104,36 @@
       <div class="sidebar-section">
         <span class="sidebar-label">Planificación</span>
         <button class="nav-item" data-view="ruta" onclick="navigate('ruta')">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 6h10M14 18H8.5a3.5 3.5 0 0 1 0-7H19a3.5 3.5 0 0 0 0-7H10"/></svg>
-          </span>
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 6h10M14 18H8.5a3.5 3.5 0 0 1 0-7H19a3.5 3.5 0 0 0 0-7H10"/></svg></span>
           <span class="nav-label">Mi ruta</span>
           <span class="nav-badge nav-badge-blue" id="badge-ruta">0</span>
         </button>
         <button class="nav-item" data-view="corriente" onclick="navigate('corriente')">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          </span>
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
           <span class="nav-label">Al corriente</span>
         </button>
       </div>
 
+      <div class="sidebar-divider"></div>
+
+      <div class="sidebar-section">
+        <span class="sidebar-label">Producción</span>
+        <button class="nav-item" data-view="videos" onclick="navigate('videos')">
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span>
+          <span class="nav-label">Videos</span>
+          <span class="nav-badge nav-badge-purple" id="badge-videos">0</span>
+        </button>
+      </div>
+
       <div class="sidebar-footer">
-        <div class="sidebar-stat">
-          <span>Locaciones</span>
-          <span class="sidebar-stat-val" id="sidebar-loc-count">—</span>
-        </div>
-        <div class="sidebar-stat">
-          <span>Versión</span>
-          <span class="sidebar-stat-val">1.1 MVP</span>
-        </div>
+        <div class="sidebar-stat"><span>Locaciones</span><span class="sidebar-stat-val" id="sidebar-loc-count">—</span></div>
+        <div class="sidebar-stat"><span>Versión</span><span class="sidebar-stat-val">1.2</span></div>
       </div>
     </nav>
 
-    <!-- CONTENT -->
     <main id="content">
 
-      <!-- ── VIEW: LOCACIONES ─────────────────────────────────── -->
+      <!-- ── VIEW: LOCACIONES ── -->
       <section class="view active" id="view-locaciones">
         <div class="page-header">
           <h1 class="page-title">Locaciones</h1>
@@ -174,15 +160,18 @@
         <div id="loc-grid" class="loc-grid"></div>
       </section>
 
-      <!-- ── VIEW: POR VENCER ─────────────────────────────────── -->
+      <!-- ── VIEW: POR VENCER ── -->
       <section class="view" id="view-vencer">
         <div class="page-header">
-          <h1 class="page-title">Por vencer</h1>
+          <div>
+            <h1 class="page-title">Por <span style="color:var(--color-primary)">Vencer</span></h1>
+            <p class="page-subtitle">Locaciones cuyo próximo check-in está próximo o ya venció. Ordena por urgencia.</p>
+          </div>
         </div>
         <div id="vencer-list" class="vencer-list"></div>
       </section>
 
-      <!-- ── VIEW: REGISTRO ───────────────────────────────────── -->
+      <!-- ── VIEW: REGISTRO ── -->
       <section class="view" id="view-registro">
         <div class="page-header">
           <h1 class="page-title">Registro</h1>
@@ -206,23 +195,18 @@
         </div>
         <div class="registro-table">
           <table>
-            <thead>
-              <tr>
-                <th>Locación</th><th>Fecha</th><th>Estado</th><th>Notas</th><th>Link</th><th></th>
-              </tr>
-            </thead>
+            <thead><tr><th>Locación</th><th>Fecha</th><th>Estado</th><th>Foto</th><th>Notas</th><th>Link</th><th></th></tr></thead>
             <tbody id="registro-tbody"></tbody>
           </table>
         </div>
         <div id="registro-empty" class="empty-state" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          <h3>Sin registros</h3>
-          <p>Agrega tu primer check-in para comenzar el seguimiento.</p>
+          <h3>Sin registros</h3><p>Agrega tu primer check-in para comenzar el seguimiento.</p>
           <button class="btn btn-primary" onclick="openCheckinModal()">Nuevo check-in</button>
         </div>
       </section>
 
-      <!-- ── VIEW: MI RUTA ────────────────────────────────────── -->
+      <!-- ── VIEW: MI RUTA ── -->
       <section class="view" id="view-ruta">
         <div class="page-header">
           <div>
@@ -230,32 +214,25 @@
             <p class="page-subtitle">Planea y optimiza tus visitas de grabación</p>
           </div>
         </div>
-
-        <!-- Tabs dentro de Ruta -->
         <div class="ruta-tabs">
-          <button class="ruta-tab active" data-tab="sugerida" onclick="switchRutaTab('sugerida', this)">
+          <button class="ruta-tab active" data-tab="sugerida" onclick="switchRutaTab('sugerida',this)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             Ruta sugerida
           </button>
-          <button class="ruta-tab" data-tab="crear" onclick="switchRutaTab('crear', this)">
+          <button class="ruta-tab" data-tab="crear" onclick="switchRutaTab('crear',this)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Crear ruta
           </button>
-          <button class="ruta-tab" data-tab="semanas" onclick="switchRutaTab('semanas', this)">
+          <button class="ruta-tab" data-tab="semanas" onclick="switchRutaTab('semanas',this)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             Por semana
           </button>
         </div>
-
-        <!-- Tab: Ruta Sugerida -->
         <div class="ruta-tab-panel active" id="ruta-panel-sugerida">
           <div class="sugerida-header">
             <div class="sugerida-info">
-              <div class="sugerida-badge">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                Generada automáticamente
-              </div>
-              <p class="sugerida-desc">Las obras más urgentes de esta semana, ordenadas por prioridad.</p>
+              <div class="sugerida-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Generada automáticamente</div>
+              <p class="sugerida-desc">Las obras más urgentes ordenadas por prioridad.</p>
             </div>
             <div class="sugerida-actions">
               <button class="btn btn-secondary btn-sm" onclick="exportRuta('sugerida')">
@@ -266,11 +243,8 @@
           </div>
           <div id="ruta-sugerida-list" class="ruta-sugerida-list"></div>
         </div>
-
-        <!-- Tab: Crear ruta -->
         <div class="ruta-tab-panel" id="ruta-panel-crear">
           <div class="crear-ruta-layout">
-            <!-- Panel izquierdo: disponibles -->
             <div class="crear-ruta-pool">
               <div class="crear-panel-header">
                 <h3>Locaciones disponibles</h3>
@@ -278,15 +252,14 @@
               </div>
               <div id="ruta-pool-list" class="ruta-pool-list"></div>
             </div>
-            <!-- Panel derecho: mi ruta -->
             <div class="crear-ruta-selected">
               <div class="crear-panel-header">
                 <h3>Mi ruta del día <span class="ruta-count-badge" id="ruta-count-badge">0</span></h3>
                 <div class="crear-header-actions">
-                  <button class="btn btn-ghost btn-sm" onclick="clearRuta()" title="Limpiar ruta">Limpiar</button>
+                  <button class="btn btn-ghost btn-sm" onclick="clearRuta()">Limpiar</button>
                   <button class="btn btn-primary btn-sm" onclick="exportRuta('custom')" id="ruta-share-btn" disabled>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-                    Compartir ruta
+                    Compartir
                   </button>
                 </div>
               </div>
@@ -299,30 +272,63 @@
             </div>
           </div>
         </div>
-
-        <!-- Tab: Por semana -->
         <div class="ruta-tab-panel" id="ruta-panel-semanas">
           <div class="ruta-toolbar">
             <input type="search" id="ruta-search" class="search-input ruta-search" placeholder="Buscar locación…" oninput="renderRutaSemanas()">
-            <div class="ruta-summary">
-              <span>Semanas: <strong id="ruta-weeks-count">0</strong></span>
-            </div>
+            <div class="ruta-summary"><span>Semanas: <strong id="ruta-weeks-count">0</strong></span></div>
           </div>
           <div id="ruta-timeline" class="ruta-timeline"></div>
         </div>
       </section>
 
-      <!-- ── VIEW: AL CORRIENTE ──────────────────────────────── -->
+      <!-- ── VIEW: AL CORRIENTE ── -->
       <section class="view" id="view-corriente">
-        <div class="page-header">
-          <h1 class="page-title">Al corriente</h1>
-        </div>
+        <div class="page-header"><h1 class="page-title">Al corriente</h1></div>
         <p class="page-subtitle" style="margin-bottom:var(--space-6)">Locaciones grabadas recientemente y dentro de su frecuencia.</p>
         <div id="corriente-grid" class="corriente-grid"></div>
         <div id="corriente-empty" class="empty-state" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="20 6 9 17 4 12"/></svg>
-          <h3>Ninguna al corriente aún</h3>
-          <p>Agrega check-ins para ver qué locaciones están al día.</p>
+          <h3>Ninguna al corriente aún</h3><p>Agrega check-ins para ver qué locaciones están al día.</p>
+        </div>
+      </section>
+
+      <!-- ── VIEW: VIDEOS ── -->
+      <section class="view" id="view-videos">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Producción de Videos</h1>
+            <p class="page-subtitle">Biblioteca de videos por obra · Estado de edición</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-secondary btn-sm" id="btn-back-videos" onclick="closeVideoDetail()" style="display:none">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+              Todas las obras
+            </button>
+          </div>
+        </div>
+
+        <!-- Grid de obras -->
+        <div id="videos-grid-panel">
+          <div class="filters">
+            <input type="search" class="search-input" id="videos-search" placeholder="Buscar obra…" oninput="renderVideosGrid()">
+            <button class="filter-btn active" data-vfilter="todas" onclick="setVideosFilter('todas',this)">Todas</button>
+            <button class="filter-btn" data-vfilter="pendiente" onclick="setVideosFilter('pendiente',this)">Con pendientes</button>
+            <button class="filter-btn" data-vfilter="publicado" onclick="setVideosFilter('publicado',this)">Publicadas</button>
+          </div>
+          <div id="videos-obra-grid" class="videos-obra-grid"></div>
+        </div>
+
+        <!-- Detalle de obra (biblioteca) -->
+        <div id="videos-detail-panel" style="display:none">
+          <div class="video-detail-header">
+            <div class="video-detail-obra-info">
+              <h2 class="video-detail-title" id="video-detail-title">—</h2>
+              <div class="video-detail-meta" id="video-detail-meta"></div>
+            </div>
+            <div class="video-detail-playlist" id="video-detail-playlist"></div>
+          </div>
+          <div class="video-detail-stats" id="video-detail-stats"></div>
+          <div class="video-checkins-list" id="video-checkins-list"></div>
         </div>
       </section>
 
@@ -332,14 +338,12 @@
 
 <!-- ═══ MODALES ════════════════════════════════════════════════════════════ -->
 
-<!-- Modal: Nueva / Editar Locación -->
-<div class="modal-overlay" id="modal-loc" role="dialog" aria-modal="true" aria-labelledby="modal-loc-title" onclick="closeOnOverlay(event,'modal-loc')">
+<!-- Modal: Locación -->
+<div class="modal-overlay" id="modal-loc" role="dialog" aria-modal="true" onclick="closeOnOverlay(event,'modal-loc')">
   <div class="modal">
     <div class="modal-header">
       <h2 class="modal-title" id="modal-loc-title">Nueva locación</h2>
-      <button class="icon-btn" onclick="closeModal('modal-loc')" aria-label="Cerrar">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
+      <button class="icon-btn" onclick="closeModal('modal-loc')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="loc-id">
@@ -361,9 +365,15 @@
         <label for="loc-address">Dirección</label>
         <input type="text" id="loc-address" class="field-input" placeholder="Calle, colonia, ciudad">
       </div>
-      <div class="field">
-        <label for="loc-notion">Link Notion / Drive</label>
-        <input type="url" id="loc-notion" class="field-input" placeholder="https://…">
+      <div class="field-row">
+        <div class="field">
+          <label for="loc-notion">Link Notion / Drive</label>
+          <input type="url" id="loc-notion" class="field-input" placeholder="https://…">
+        </div>
+        <div class="field">
+          <label for="loc-playlist">Playlist YouTube</label>
+          <input type="url" id="loc-playlist" class="field-input" placeholder="https://youtube.com/playlist?…">
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -374,13 +384,11 @@
 </div>
 
 <!-- Modal: Check-in -->
-<div class="modal-overlay" id="modal-checkin" role="dialog" aria-modal="true" aria-labelledby="modal-checkin-title" onclick="closeOnOverlay(event,'modal-checkin')">
+<div class="modal-overlay" id="modal-checkin" role="dialog" aria-modal="true" onclick="closeOnOverlay(event,'modal-checkin')">
   <div class="modal">
     <div class="modal-header">
       <h2 class="modal-title" id="modal-checkin-title">Nuevo check-in</h2>
-      <button class="icon-btn" onclick="closeModal('modal-checkin')" aria-label="Cerrar">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
+      <button class="icon-btn" onclick="closeModal('modal-checkin')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="ci-id">
@@ -395,15 +403,33 @@
         </div>
       </div>
       <div class="field">
-        <label for="ci-estado">Estado *</label>
+        <label for="ci-estado">Estado inicial del material</label>
         <select id="ci-estado" class="field-select">
           <option value="grabado">🎥 Grabado</option>
           <option value="en_edicion">✂️ En edición</option>
+          <option value="editado">✔️ Editado</option>
           <option value="publicado">✅ Publicado</option>
         </select>
       </div>
       <div class="field">
-        <label for="ci-link">Link (Drive / YouTube / etc.)</label>
+        <label>Foto de la obra</label>
+        <div class="foto-upload-area" id="ci-foto-drop" onclick="document.getElementById('ci-foto-file').click()">
+          <div class="foto-upload-placeholder" id="ci-foto-placeholder">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+            <span>Toca para seleccionar foto</span>
+            <span class="foto-upload-hint">JPG, PNG, WebP · máx 5 MB</span>
+          </div>
+          <img id="ci-foto-preview" src="" alt="Preview" class="foto-preview-img" style="display:none">
+        </div>
+        <input type="file" id="ci-foto-file" accept="image/*" capture="environment" style="display:none">
+        <input type="hidden" id="ci-foto-url">
+        <button type="button" class="btn btn-ghost btn-sm foto-remove-btn" id="ci-foto-remove" style="display:none;margin-top:4px" onclick="removeFoto()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Quitar foto
+        </button>
+      </div>
+      <div class="field">
+        <label for="ci-link">Link del video (YouTube / Drive)</label>
         <input type="url" id="ci-link" class="field-input" placeholder="https://…">
       </div>
       <div class="field">
@@ -430,9 +456,7 @@
   </div>
 </div>
 
-<!-- Toast Container -->
 <div id="toast-container" aria-live="polite"></div>
-
 <script src="app.js"></script>
 </body>
 </html>
