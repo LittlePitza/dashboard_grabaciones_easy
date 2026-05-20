@@ -6,6 +6,7 @@
 <title>Grabación Obras</title>
 <meta name="theme-color" content="#4f98a3">
 <meta name="description" content="Sistema de seguimiento de grabaciones de obras">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%234f98a3'/><path d='M6 26 L6 14 L16 7 L26 14 L26 26' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' fill='none'/><rect x='13' y='18' width='6' height='8' rx='1' stroke='white' stroke-width='2' fill='none'/><circle cx='22' cy='11' r='3.5' stroke='white' stroke-width='2' fill='none'/><circle cx='22' cy='11' r='1' fill='white'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -405,10 +406,10 @@
       <div class="field">
         <label for="ci-estado">Estado inicial del material</label>
         <select id="ci-estado" class="field-select">
-          <option value="grabado">🎥 Grabado</option>
-          <option value="en_edicion">✂️ En edición</option>
-          <option value="editado">✔️ Editado</option>
-          <option value="publicado">✅ Publicado</option>
+          <option value="grabado">Grabado</option>
+          <option value="en_edicion">En edición</option>
+          <option value="editado">Editado</option>
+          <option value="publicado">Publicado</option>
         </select>
       </div>
       <div class="field">
@@ -457,6 +458,10 @@
 </div>
 
 <div id="toast-container" aria-live="polite"></div>
+<div id="update-banner" style="display:none;position:fixed;bottom:var(--space-6);left:50%;transform:translateX(-50%);z-index:800;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-full);padding:var(--space-2) var(--space-4);box-shadow:var(--shadow-lg);display:none;align-items:center;gap:var(--space-3);font-size:var(--text-xs);white-space:nowrap">
+  <span style="color:var(--color-text-muted)">Nueva versión disponible</span>
+  <button onclick="applyUpdate()" style="background:var(--color-primary);color:#fff;border:none;border-radius:var(--radius-full);padding:4px 14px;font-size:var(--text-xs);font-weight:600;cursor:pointer">Actualizar</button>
+</div>
 <script src="app.js"></script>
 </body>
 </html>

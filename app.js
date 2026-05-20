@@ -84,7 +84,32 @@ async function initApp() {
   setupFotoPreview();
   await loadAll();
   renderAll();
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(reg => {
+        // Revisar actualizaciones cada vez que se carga la app
+        reg.update();
+        // Cuando hay una nueva versión instalada y esperando
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // Hay update listo — mostrar banner
+              const banner = document.getElementById('update-banner');
+              if (banner) banner.style.display = 'flex';
+              window.__newWorker = newWorker;
+            }
+          });
+        });
+      })
+      .catch(() => {});
+
+    // Si el SW tomó control (después de actualizar), recargar
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) { refreshing = true; location.reload(); }
+    });
+  }
 }
 
 async function loadAll() {
@@ -669,9 +694,9 @@ function renderVideoDetail(locId) {
   // Header
   document.getElementById('video-detail-title').textContent = loc.name;
   document.getElementById('video-detail-meta').innerHTML = [
-    loc.address    ? `<span>📍 ${esc(loc.address)}</span>`    : '',
-    loc.responsable? `<span>👤 ${esc(loc.responsable)}</span>` : '',
-    `<span>🎬 ${total} check-in${total!==1?'s':''}</span>`,
+    loc.address    ? `<span class="vd-meta-item"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${esc(loc.address)}</span>` : '',
+    loc.responsable? `<span class="vd-meta-item"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${esc(loc.responsable)}</span>` : '',
+    `<span class="vd-meta-item"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>${total} check-in${total!==1?'s':''}</span>`,
   ].filter(Boolean).join('');
 
   // Playlist destacada
@@ -710,10 +735,10 @@ function renderVideoDetail(locId) {
   }
 
   const estados = [
-    { key:'grabado',    label:'🎥 Grabado' },
-    { key:'en_edicion', label:'✂️ En edición' },
-    { key:'editado',    label:'✔️ Editado' },
-    { key:'publicado',  label:'✅ Publicado' },
+    { key:'grabado',    label:'Grabado' },
+    { key:'en_edicion', label:'En edición' },
+    { key:'editado',    label:'Editado' },
+    { key:'publicado',  label:'Publicado' },
   ];
 
   listEl.innerHTML = locCIs.map(ci => {
@@ -1099,6 +1124,15 @@ function setupThemeToggle() {
   };
   upd();
   btn.addEventListener('click',()=>{dark=!dark;html.setAttribute('data-theme',dark?'dark':'light');upd();});
+}
+
+// ─── SW UPDATE ────────────────────────────────────────────────
+function applyUpdate() {
+  if (window.__newWorker) {
+    window.__newWorker.postMessage({ type: 'SKIP_WAITING' });
+  } else {
+    location.reload();
+  }
 }
 
 // ─── TOAST ────────────────────────────────────────────────────
