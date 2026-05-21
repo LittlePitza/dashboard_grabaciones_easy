@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════
-   GRABACIÓN OBRAS — app.js  v1.5
+   GRABACIÓN OBRAS — app.js  v1.6
    ═══════════════════════════════════════════════════════════ */
 
 // ─── CONFIG ──────────────────────────────────────────────────
@@ -104,6 +104,7 @@ async function loadRouteState() {
         arrived_at: s.arrived_at,
         done_at: s.done_at,
         checkin_id: s.checkin_id,
+        visit_note: s.visit_note || null,
       }));
       if (r.ended_at === null) {
         // Ruta activa (solo debería haber una)
@@ -173,6 +174,7 @@ async function _pushRouteToSupabase(route, endedAt) {
     arrived_at: s.arrived_at,
     done_at: s.done_at,
     checkin_id: s.checkin_id,
+    visit_note: s.visit_note || null,
   }));
   if (stopsRows.length) {
     const { error: sErr } = await sb.from('route_stops').upsert(stopsRows);
@@ -652,6 +654,9 @@ function renderLocaciones() {
       <div class="loc-card-footer">
         <span class="chip ${statusClass}">${statusLabel}</span>
         <div class="loc-card-actions">
+          ${loc.lat && loc.lng ? `<a class="loc-card-geo" href="${mapsUrl(loc.lat,loc.lng)}" target="_blank" rel="noopener" title="Abrir en Maps">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>Maps
+          </a>` : ''}
           ${can('checkin') ? `<button class="icon-btn" onclick="openCheckinModal('${loc.id}')" title="Nuevo check-in">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>` : ''}
@@ -1199,25 +1204,30 @@ function _renderStop(stop, i, loc) {
   const num = i + 1;
   const state = stop.state;
   let badge = '';
-  if (state === 'done')    badge = `<span class="ra-stop-badge done">Completada</span>`;
+  if (state === 'done')         badge = `<span class="ra-stop-badge done">Completada</span>`;
   else if (state === 'current') badge = `<span class="ra-stop-badge current">En curso</span>`;
   else if (state === 'skipped') badge = `<span class="ra-stop-badge skipped">Omitida</span>`;
   else                          badge = `<span class="ra-stop-badge pending">Pendiente</span>`;
 
   // Urgency badge
-  const st = locStatus(loc);
+  const st  = locStatus(loc);
   const due = daysUntilDue(loc);
   let urgBadge = '';
   if (st === 'overdue') urgBadge = `<span class="ra-stop-badge overdue">Vencida ${Math.abs(due)}d</span>`;
 
-  // Meta line
+  // Meta line — incluye link a Maps si hay coordenadas
   const meta = [
-    loc.address ? `<span class="ra-stop-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${esc(loc.address)}</span>` : '',
+    loc.lat && loc.lng
+      ? `<a class="ra-stop-meta-item" href="${mapsUrl(loc.lat,loc.lng)}" target="_blank" rel="noopener" style="color:var(--color-primary);text-decoration:none" title="Abrir en Maps">
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>Navegar</a>`
+      : loc.address
+        ? `<span class="ra-stop-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${esc(loc.address)}</span>`
+        : '',
     `<span class="ra-stop-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Cada ${loc.freq_days||15}d</span>`,
     loc.last_checkin ? `<span class="ra-stop-meta-item">Últ: ${fmtDate(loc.last_checkin)}</span>` : `<span class="ra-stop-meta-item">Sin grabar</span>`,
   ].filter(Boolean).join('');
 
-  // Tiempos registrados (solo si hay datos)
+  // Tiempos registrados
   let times = '';
   const parts = [];
   if (stop.arrived_at) parts.push(`<span class="ra-stop-times-item">▶ Llegada ${fmtTime(stop.arrived_at)}</span>`);
@@ -1230,6 +1240,23 @@ function _renderStop(stop, i, loc) {
   }
   if (parts.length) times = `<div class="ra-stop-times">${parts.join('')}</div>`;
 
+  // Nota de visita — campo colapsable, discreto
+  const hasNote = !!(stop.visit_note && stop.visit_note.trim());
+  const noteWrapClass = (state === 'current' || hasNote) ? 'open' : '';
+  const noteSection = (state === 'done' || state === 'skipped')
+    ? (hasNote ? `<div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:var(--space-2);padding-top:var(--space-2);border-top:1px dashed var(--color-divider)">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:3px;vertical-align:middle"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${esc(stop.visit_note)}</div>` : '')
+    : `<button class="ra-stop-note-toggle" onclick="toggleStopNote('${stop.id}',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        ${hasNote ? 'Ver nota' : 'Agregar nota'}
+      </button>
+      <div class="ra-stop-note-wrap ${noteWrapClass}" id="note-wrap-${stop.id}">
+        <textarea class="ra-stop-note-input" id="note-input-${stop.id}"
+          placeholder="Nota rápida sobre esta visita…"
+          oninput="saveStopNote('${stop.id}',this.value)">${esc(stop.visit_note||'')}</textarea>
+        <div class="ra-stop-note-saved" id="note-saved-${stop.id}">Guardado</div>
+      </div>`;
+
   // Acciones según estado
   let actions = '';
   if (state === 'current') {
@@ -1239,7 +1266,7 @@ function _renderStop(stop, i, loc) {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
           Hacer check-in
         </button>
-        <button class="btn btn-ghost btn-sm" onclick="markStopDone('${stop.id}')" title="Marcar como hecho sin check-in">Hecho sin check-in</button>
+        <button class="btn btn-ghost btn-sm" onclick="markStopDone('${stop.id}')">Hecho sin check-in</button>
         <button class="btn btn-ghost btn-sm" onclick="skipStop('${stop.id}')">Omitir</button>
       </div>`;
   } else if (state === 'pending') {
@@ -1265,9 +1292,39 @@ function _renderStop(stop, i, loc) {
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start">${urgBadge}${badge}</div>
         </div>
         ${times}
+        ${noteSection}
         ${actions}
       </div>
     </div>`;
+}
+
+// ─── Nota de visita por parada ────────────────────────────────
+function toggleStopNote(stopId) {
+  const wrap = document.getElementById(`note-wrap-${stopId}`);
+  if (!wrap) return;
+  const isOpen = wrap.classList.toggle('open');
+  if (isOpen) {
+    const ta = document.getElementById(`note-input-${stopId}`);
+    if (ta) setTimeout(() => ta.focus(), 60);
+  }
+}
+
+let _noteSaveTimers = {};
+function saveStopNote(stopId, value) {
+  if (!activeRoute) return;
+  const stop = activeRoute.stops.find(s => s.id === stopId);
+  if (!stop) return;
+  stop.visit_note = value;
+  // Debounce: guardar tras 800ms de inactividad para no saturar Supabase
+  clearTimeout(_noteSaveTimers[stopId]);
+  _noteSaveTimers[stopId] = setTimeout(async () => {
+    await saveActiveRoute();
+    const saved = document.getElementById(`note-saved-${stopId}`);
+    if (saved) {
+      saved.style.display = 'block';
+      setTimeout(() => { if (saved) saved.style.display = 'none'; }, 1800);
+    }
+  }, 800);
 }
 
 // ─── Cronómetro en vivo ───────────────────────────────────────
@@ -1362,7 +1419,7 @@ function showRouteSummary(route) {
           : '—';
         return `<div class="hc-stop-row ${cls}">
           <span class="hc-stop-num">${i+1}</span>
-          <span class="hc-stop-name">${esc(s.loc_name)}</span>
+          <span class="hc-stop-name">${esc(s.loc_name)}${s.visit_note ? `<br><span style="font-size:10px;color:var(--color-text-faint);font-weight:400">${esc(s.visit_note)}</span>` : ''}</span>
           <span class="hc-stop-time">${dur}</span>
         </div>`;
       }).join('')}
@@ -1428,7 +1485,7 @@ function renderHistorial() {
             : '—';
           return `<div class="hc-stop-row ${cls}">
             <span class="hc-stop-num">${i+1}</span>
-            <span class="hc-stop-name">${esc(s.loc_name)}</span>
+            <span class="hc-stop-name">${esc(s.loc_name)}${s.visit_note ? `<br><span style="font-size:10px;color:var(--color-text-faint);font-weight:400">${esc(s.visit_note)}</span>` : ''}</span>
             <span class="hc-stop-time">${dur}</span>
           </div>`;
         }).join('')}
@@ -1730,9 +1787,14 @@ function openLocModal(id) {
     document.getElementById('loc-address').value     = loc.address||'';
     document.getElementById('loc-notion').value      = loc.link_notion||'';
     document.getElementById('loc-playlist').value    = loc.playlist_url||'';
+    document.getElementById('loc-lat').value         = loc.lat||'';
+    document.getElementById('loc-lng').value         = loc.lng||'';
+    _renderGeoBlock(loc.lat, loc.lng, loc._geoAddr||null);
   } else {
-    ['loc-id','loc-name','loc-responsable','loc-address','loc-notion','loc-playlist'].forEach(id => document.getElementById(id).value='');
+    ['loc-id','loc-name','loc-responsable','loc-address','loc-notion','loc-playlist',
+     'loc-lat','loc-lng'].forEach(fid => document.getElementById(fid).value='');
     document.getElementById('loc-freq').value = 15;
+    _renderGeoBlock(null, null, null);
   }
   openModal('modal-loc');
 }
@@ -1744,6 +1806,8 @@ async function saveLoc() {
   const freq = parseInt(document.getElementById('loc-freq').value);
   if (!name)       { showToast('El nombre es obligatorio','error'); return; }
   if (!freq||freq<1) { showToast('La frecuencia debe ser ≥ 1 día','error'); return; }
+  const latRaw = document.getElementById('loc-lat').value;
+  const lngRaw = document.getElementById('loc-lng').value;
   const obj = {
     id: id||genId(), name,
     responsable:  document.getElementById('loc-responsable').value.trim(),
@@ -1751,6 +1815,8 @@ async function saveLoc() {
     address:      document.getElementById('loc-address').value.trim(),
     link_notion:  document.getElementById('loc-notion').value.trim(),
     playlist_url: document.getElementById('loc-playlist').value.trim(),
+    lat:          latRaw ? parseFloat(latRaw) : null,
+    lng:          lngRaw ? parseFloat(lngRaw) : null,
     last_checkin: id ? (locations.find(l=>l.id===id)||{}).last_checkin : null,
     created_at:   id ? (locations.find(l=>l.id===id)||{}).created_at   : new Date().toISOString(),
   };
@@ -1763,6 +1829,116 @@ async function saveLoc() {
   closeModal('modal-loc');
   renderAll();
   showToast(id?'Locación actualizada':'Locación creada','success');
+}
+
+// ─── UBICACIÓN GPS ────────────────────────────────────────────
+
+// Renderiza el bloque de info dentro del modal
+function _renderGeoBlock(lat, lng, addr) {
+  const info      = document.getElementById('loc-geo-info');
+  const mapsBtn   = document.getElementById('loc-maps-btn');
+  const clearBtn  = document.getElementById('loc-geo-clear');
+  const captureBtn= document.getElementById('loc-geo-btn');
+  if (!info) return;
+
+  if (lat && lng) {
+    const latFmt = lat.toFixed(6), lngFmt = lng.toFixed(6);
+    info.innerHTML = `
+      <div class="loc-geo-coords">
+        <span class="loc-geo-coords-val">${latFmt}, ${lngFmt}</span>
+      </div>
+      ${addr ? `<div class="loc-geo-addr">${esc(addr)}</div>` : ''}`;
+    // URL que funciona en Google Maps, Waze y Apple Maps
+    const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+    if (mapsBtn)  { mapsBtn.href = mapsUrl; mapsBtn.style.display = ''; }
+    if (clearBtn) clearBtn.style.display = '';
+    if (captureBtn) captureBtn.textContent = 'Recapturar';
+  } else {
+    info.innerHTML = '';
+    if (mapsBtn)  mapsBtn.style.display  = 'none';
+    if (clearBtn) clearBtn.style.display = 'none';
+    if (captureBtn) captureBtn.innerHTML =
+      `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="10" stroke-dasharray="3 3"/></svg> Capturar ubicación`;
+  }
+}
+
+// Capturar GPS del dispositivo + geocoding inverso con Nominatim (OpenStreetMap, gratis)
+async function captureLocGeo() {
+  const btn  = document.getElementById('loc-geo-btn');
+  const info = document.getElementById('loc-geo-info');
+  if (!navigator.geolocation) {
+    showToast('Tu navegador no soporta geolocalización', 'error'); return;
+  }
+  // Estado de carga
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="saving-spin"></span> Obteniendo…'; }
+  if (info) info.innerHTML = '<span class="loc-geo-loading"><span class="saving-spin"></span>Obteniendo ubicación…</span>';
+
+  try {
+    const pos = await new Promise((res, rej) =>
+      navigator.geolocation.getCurrentPosition(res, rej, {
+        enableHighAccuracy: true, timeout: 12000, maximumAge: 0,
+      })
+    );
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+
+    // Guardar en los campos ocultos
+    document.getElementById('loc-lat').value = lat;
+    document.getElementById('loc-lng').value = lng;
+
+    // Geocoding inverso con Nominatim
+    let addr = null;
+    try {
+      const r = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
+        { headers: { 'Accept-Language': 'es', 'User-Agent': 'GrabacionObras/1.6' } }
+      );
+      if (r.ok) {
+        const data = await r.json();
+        // Construir dirección legible: calle + colonia + ciudad
+        const a = data.address || {};
+        const parts = [
+          a.road || a.pedestrian || a.footway,
+          a.suburb || a.neighbourhood || a.quarter,
+          a.city || a.town || a.village || a.municipality,
+          a.state,
+        ].filter(Boolean);
+        addr = parts.join(', ');
+        // Si el campo de dirección del modal está vacío, llenarlo con esto
+        const addrField = document.getElementById('loc-address');
+        if (addrField && !addrField.value.trim()) addrField.value = addr;
+        // Cachear en el objeto de locación para mostrarla sin re-geocodificar
+        const locId = document.getElementById('loc-id').value;
+        if (locId) {
+          const loc = locations.find(l => l.id === locId);
+          if (loc) loc._geoAddr = addr;
+        }
+      }
+    } catch { /* geocoding falló — no es crítico */ }
+
+    _renderGeoBlock(lat, lng, addr);
+    showToast('Ubicación guardada ✓', 'success');
+  } catch (e) {
+    if (info) info.innerHTML = '';
+    const msg = e.code === 1 ? 'Permiso de ubicación denegado'
+               : e.code === 2 ? 'No se pudo obtener la ubicación'
+               : 'Tiempo agotado obteniendo ubicación';
+    showToast(msg, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function clearLocGeo() {
+  document.getElementById('loc-lat').value = '';
+  document.getElementById('loc-lng').value = '';
+  _renderGeoBlock(null, null, null);
+}
+
+// Genera URL de navegación para abrir la ubicación en la app de mapas preferida
+// (se usa tanto en el modal como en las cards y en la ruta activa)
+function mapsUrl(lat, lng) {
+  return `https://www.google.com/maps?q=${lat},${lng}`;
 }
 
 // ─── FOTO UPLOAD ──────────────────────────────────────────────

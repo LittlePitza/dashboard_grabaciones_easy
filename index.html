@@ -138,7 +138,7 @@
         <!-- Bloque de modo (lector / admin) — se rellena desde JS -->
         <div id="sidebar-mode-block" class="sidebar-mode-block"></div>
         <div class="sidebar-stat"><span>Locaciones</span><span class="sidebar-stat-val" id="sidebar-loc-count">—</span></div>
-        <div class="sidebar-stat"><span>Versión</span><span class="sidebar-stat-val">1.5</span></div>
+        <div class="sidebar-stat"><span>Versión</span><span class="sidebar-stat-val">1.6</span></div>
       </div>
     </nav>
 
@@ -443,6 +443,30 @@
         <div class="field"><label for="loc-freq">Frecuencia (días) *</label><input type="number" id="loc-freq" class="field-input" min="1" max="365" value="15"></div>
       </div>
       <div class="field"><label for="loc-address">Dirección</label><input type="text" id="loc-address" class="field-input" placeholder="Calle, colonia, ciudad"></div>
+
+      <!-- Bloque de ubicación GPS -->
+      <div class="loc-geo-block" id="loc-geo-block">
+        <div class="loc-geo-info" id="loc-geo-info">
+          <!-- Se rellena con JS: sin coordenadas o con lat/lng + dirección -->
+        </div>
+        <div class="loc-geo-actions">
+          <button type="button" class="btn btn-ghost btn-sm" id="loc-geo-btn" onclick="captureLocGeo()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="10" stroke-dasharray="3 3"/></svg>
+            Capturar ubicación
+          </button>
+          <a class="btn btn-ghost btn-sm" id="loc-maps-btn" style="display:none" target="_blank" rel="noopener">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+            Abrir en Maps
+          </a>
+          <button type="button" class="btn btn-ghost btn-sm" id="loc-geo-clear" style="display:none" onclick="clearLocGeo()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Quitar
+          </button>
+        </div>
+      </div>
+      <input type="hidden" id="loc-lat">
+      <input type="hidden" id="loc-lng">
+
       <div class="field-row">
         <div class="field"><label for="loc-notion">Link Notion / Drive</label><input type="url" id="loc-notion" class="field-input" placeholder="https://…"></div>
         <div class="field"><label for="loc-playlist">Playlist YouTube</label><input type="url" id="loc-playlist" class="field-input" placeholder="https://youtube.com/playlist?…"></div>

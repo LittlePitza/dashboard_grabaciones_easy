@@ -1227,3 +1227,91 @@ hr.divider { border: none; border-top: 1px solid var(--color-divider); margin: v
 }
 .ruta-locked h3 { font-size: var(--text-lg); font-weight: 700; color: var(--color-text); }
 .ruta-locked p { font-size: var(--text-sm); color: var(--color-text-muted); max-width: 44ch; line-height: 1.6; }
+
+/* ─── UBICACIÓN GPS en modal locación ───────────────────── */
+.loc-geo-block {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  background: var(--color-surface-offset);
+  display: flex; flex-direction: column; gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+.loc-geo-info {
+  font-size: var(--text-xs); color: var(--color-text-muted);
+  min-height: 18px;
+}
+.loc-geo-info:empty::before {
+  content: 'Sin ubicación guardada';
+  color: var(--color-text-faint);
+}
+.loc-geo-coords {
+  display: flex; align-items: center; gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.loc-geo-coords-val {
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--color-text-muted);
+  background: var(--color-surface-dynamic);
+  padding: 2px 7px; border-radius: var(--radius-sm);
+}
+.loc-geo-addr {
+  font-size: var(--text-xs); color: var(--color-text-muted);
+  line-height: 1.4; margin-top: 2px;
+}
+.loc-geo-addr strong { color: var(--color-text); font-weight: 600; }
+.loc-geo-actions {
+  display: flex; gap: var(--space-2); flex-wrap: wrap;
+}
+.loc-geo-loading {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--text-xs); color: var(--color-primary);
+}
+
+/* Chip de ubicación en la card de locación */
+.loc-card-geo {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; color: var(--color-text-faint);
+  font-family: var(--font-mono);
+  cursor: pointer; transition: color var(--transition);
+  text-decoration: none;
+}
+.loc-card-geo:hover { color: var(--color-primary); }
+.loc-card-geo svg  { width: 10px; height: 10px; flex-shrink: 0; }
+
+/* ─── NOTA DE VISITA en parada de ruta activa ────────────── */
+.ra-stop-note-toggle {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--text-xs); color: var(--color-text-faint);
+  background: none; border: none; cursor: pointer;
+  padding: 2px 0; transition: color var(--transition);
+  margin-top: 2px;
+}
+.ra-stop-note-toggle:hover { color: var(--color-text-muted); }
+.ra-stop-note-toggle svg { width: 11px; height: 11px; }
+
+.ra-stop-note-wrap {
+  margin-top: var(--space-2);
+  display: none; /* toggled by JS */
+}
+.ra-stop-note-wrap.open { display: block; }
+.ra-stop-note-input {
+  width: 100%;
+  background: var(--color-surface-offset);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs); color: var(--color-text);
+  resize: vertical; min-height: 56px; max-height: 120px;
+  font-family: var(--font-body); line-height: 1.5;
+  transition: border-color var(--transition);
+}
+.ra-stop-note-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px oklch(from var(--color-primary) l c h / .12);
+}
+.ra-stop-note-saved {
+  font-size: 10px; color: var(--color-success);
+  margin-top: 3px; display: none;
+}
