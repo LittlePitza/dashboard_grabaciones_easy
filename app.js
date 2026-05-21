@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════
-   GRABACIÓN OBRAS — app.js  v1.4
+   GRABACIÓN OBRAS — app.js  v1.5
    ═══════════════════════════════════════════════════════════ */
 
 // ─── CONFIG ──────────────────────────────────────────────────
@@ -20,7 +20,7 @@ let currentRutaTab   = 'activa';
 let currentVideoFilter = 'todas';
 let currentVideoLocId  = null;   // obra abierta en detalle
 
-// ─── RUTA ACTIVA (persistida en localStorage) ────────────────
+// ─── RUTA ACTIVA (Supabase primario + localStorage de respaldo) ─────
 // Estructura activeRoute:
 // { id, started_at, stops: [{ id, loc_id, state:'pending'|'current'|'done'|'skipped',
 //   arrived_at, done_at, checkin_id }] }
@@ -29,8 +29,10 @@ let routeHistory = [];         // array de rutas terminadas
 const LS_ACTIVE  = 'go_active_route_v1';
 const LS_HISTORY = 'go_route_history_v1';
 let _raTimer     = null;       // intervalo para actualizar el cronómetro
+let _routesBackend = 'local';  // 'supabase' | 'local' — qué fuente está activa
 
-function loadRouteState() {
+// Lee del localStorage (respaldo / cache offline)
+function _loadRoutesFromLocal() {
   try {
     const a = localStorage.getItem(LS_ACTIVE);
     activeRoute = a ? JSON.parse(a) : null;
@@ -40,12 +42,194 @@ function loadRouteState() {
     routeHistory = h ? JSON.parse(h) : [];
   } catch { routeHistory = []; }
 }
-function saveActiveRoute() {
-  if (activeRoute) localStorage.setItem(LS_ACTIVE, JSON.stringify(activeRoute));
-  else localStorage.removeItem(LS_ACTIVE);
+
+// Carga inicial: intenta Supabase, si falla cae a local
+async function loadRouteState() {
+  // Siempre carga local primero (rápido y permite ver algo si Supabase tarda)
+  _loadRoutesFromLocal();
+
+  // Si no hay sesión admin → no intentamos Supabase (RLS rechazaría todo).
+  // El lector verá el mensaje "Solo admin" y no necesita cargar nada.
+  if (currentRole !== 'admin' || !USE_SUPABASE) {
+    _routesBackend = 'local';
+    return;
+  }
+
+  try {
+    // Cargar todas las rutas con sus paradas
+    const { data: routes, error: rErr } = await sb
+      .from('routes')
+      .select('*')
+      .order('started_at', { ascending: false })
+      .limit(50);
+    if (rErr) throw rErr;
+
+    if (!routes || !routes.length) {
+      // Supabase responde pero vacío → backend OK, sin datos remotos
+      _routesBackend = 'supabase';
+      // Si hay datos locales pero no remotos, los subimos como migración
+      if (activeRoute || routeHistory.length) {
+        await _migrateLocalToSupabase();
+      } else {
+        activeRoute = null;
+        routeHistory = [];
+      }
+      return;
+    }
+
+    // Cargar todas las paradas de esas rutas en una sola query
+    const routeIds = routes.map(r => r.id);
+    const { data: stops, error: sErr } = await sb
+      .from('route_stops')
+      .select('*')
+      .in('route_id', routeIds)
+      .order('position', { ascending: true });
+    if (sErr) throw sErr;
+
+    const stopsByRoute = {};
+    (stops || []).forEach(s => {
+      if (!stopsByRoute[s.route_id]) stopsByRoute[s.route_id] = [];
+      stopsByRoute[s.route_id].push(s);
+    });
+
+    // Separar activa (ended_at null) vs historial
+    activeRoute = null;
+    routeHistory = [];
+    routes.forEach(r => {
+      const stopList = (stopsByRoute[r.id] || []).map(s => ({
+        id: s.id,
+        loc_id: s.loc_id,
+        loc_name: s.loc_name,
+        state: s.state,
+        arrived_at: s.arrived_at,
+        done_at: s.done_at,
+        checkin_id: s.checkin_id,
+      }));
+      if (r.ended_at === null) {
+        // Ruta activa (solo debería haber una)
+        if (!activeRoute) {
+          activeRoute = { id: r.id, started_at: r.started_at, stops: stopList };
+        }
+      } else {
+        routeHistory.push({
+          id: r.id,
+          started_at: r.started_at,
+          ended_at: r.ended_at,
+          stops: stopList.map(s => ({ ...s, loc_name: s.loc_name || getLocName(s.loc_id) })),
+        });
+      }
+    });
+
+    _routesBackend = 'supabase';
+    // Cachear en local por si hay desconexión luego
+    _cacheToLocal();
+  } catch (e) {
+    console.warn('[Routes] Supabase falló, usando localStorage:', e.message);
+    _routesBackend = 'local';
+    _loadRoutesFromLocal();
+  }
 }
+
+// Cache local (siempre escribimos al local como respaldo, además de Supabase)
+function _cacheToLocal() {
+  try {
+    if (activeRoute) localStorage.setItem(LS_ACTIVE, JSON.stringify(activeRoute));
+    else localStorage.removeItem(LS_ACTIVE);
+    localStorage.setItem(LS_HISTORY, JSON.stringify(routeHistory));
+  } catch {}
+}
+
+// Migración inicial: si hay datos en localStorage y no en Supabase, los sube
+async function _migrateLocalToSupabase() {
+  try {
+    if (activeRoute) {
+      await _pushRouteToSupabase(activeRoute, null);
+    }
+    for (const r of routeHistory) {
+      await _pushRouteToSupabase(r, r.ended_at);
+    }
+    showToast('Rutas locales migradas a la nube', 'success');
+  } catch (e) {
+    console.warn('[Routes] migración falló:', e.message);
+  }
+}
+
+// Inserta una ruta + sus paradas en Supabase (upsert)
+async function _pushRouteToSupabase(route, endedAt) {
+  const { error: rErr } = await sb.from('routes').upsert({
+    id: route.id,
+    started_at: route.started_at,
+    ended_at: endedAt,
+  });
+  if (rErr) throw rErr;
+  // Subir paradas
+  const stopsRows = route.stops.map((s, i) => ({
+    id: s.id || genId(),
+    route_id: route.id,
+    position: i,
+    loc_id: s.loc_id,
+    loc_name: s.loc_name || getLocName(s.loc_id),
+    state: s.state,
+    arrived_at: s.arrived_at,
+    done_at: s.done_at,
+    checkin_id: s.checkin_id,
+  }));
+  if (stopsRows.length) {
+    const { error: sErr } = await sb.from('route_stops').upsert(stopsRows);
+    if (sErr) throw sErr;
+  }
+}
+
+// Guarda la ruta activa (Supabase + cache local). NO bloquea la UI.
+async function saveActiveRoute() {
+  _cacheToLocal(); // siempre cachear primero (instantáneo)
+  if (_routesBackend !== 'supabase' || currentRole !== 'admin') return;
+  try {
+    if (activeRoute) {
+      await _pushRouteToSupabase(activeRoute, null);
+    }
+  } catch (e) {
+    console.warn('[Routes] saveActiveRoute Supabase falló:', e.message);
+    showToast('Ruta guardada localmente (sin conexión)', 'info');
+  }
+}
+
+// Termina una ruta en Supabase (set ended_at + actualizar stops finales)
+async function _persistFinishedRoute(finishedRoute) {
+  _cacheToLocal();
+  if (_routesBackend !== 'supabase' || currentRole !== 'admin') return;
+  try {
+    await _pushRouteToSupabase(finishedRoute, finishedRoute.ended_at);
+  } catch (e) {
+    console.warn('[Routes] _persistFinishedRoute falló:', e.message);
+    showToast('Guardado localmente (reintentar al reconectar)', 'info');
+  }
+}
+
+// Borra una ruta de Supabase (cascada elimina stops)
+async function _deleteRouteFromSupabase(routeId) {
+  if (_routesBackend !== 'supabase' || currentRole !== 'admin') return;
+  try {
+    await sb.from('routes').delete().eq('id', routeId);
+  } catch (e) {
+    console.warn('[Routes] _deleteRouteFromSupabase falló:', e.message);
+  }
+}
+
+// Borrar todo el historial de Supabase
+async function _clearHistoryFromSupabase() {
+  if (_routesBackend !== 'supabase' || currentRole !== 'admin') return;
+  try {
+    await sb.from('routes').delete().not('ended_at', 'is', null);
+  } catch (e) {
+    console.warn('[Routes] _clearHistoryFromSupabase falló:', e.message);
+  }
+}
+
 function saveRouteHistory() {
-  localStorage.setItem(LS_HISTORY, JSON.stringify(routeHistory));
+  // El historial se persiste pieza por pieza al terminar cada ruta.
+  // Esta función solo refresca el cache local.
+  _cacheToLocal();
 }
 
 // ─── SEED DATA ───────────────────────────────────────────────
@@ -139,6 +323,19 @@ function applyRoleUI() {
   // Eliminar el viejo banner flotante si existe (de versiones previas)
   const oldBanner = document.getElementById('readonly-banner');
   if (oldBanner) oldBanner.remove();
+
+  // Mi Ruta: bloquear para lector
+  const rutaLocked  = document.getElementById('ruta-locked');
+  const rutaContent = document.getElementById('ruta-content');
+  if (rutaLocked && rutaContent) {
+    if (currentRole === 'admin') {
+      rutaLocked.style.display  = 'none';
+      rutaContent.style.display = '';
+    } else {
+      rutaLocked.style.display  = 'flex';
+      rutaContent.style.display = 'none';
+    }
+  }
 }
 
 // ── Abrir modal de login admin ────────────────────────────────
@@ -172,6 +369,9 @@ async function loginAdmin() {
     closeModal('modal-admin-login');
     applyRoleUI();
     showToast('Bienvenido, admin', 'success');
+    // Ahora que somos admin, cargar rutas desde Supabase
+    await loadRouteState();
+    renderRutaAll();
   } catch {
     errEl.textContent = 'Email o contraseña incorrectos.';
     document.getElementById('admin-password').value = '';
@@ -205,6 +405,11 @@ function logout() {
   sb.auth.signOut();
   sessionStorage.removeItem('role');
   currentRole = 'lector';
+  // Limpiar rutas de memoria (el lector no las ve)
+  activeRoute = null;
+  routeHistory = [];
+  _stopRaTimer();
+  _routesBackend = 'local';
   applyRoleUI();
   renderAll();
   showToast('Sesión de admin cerrada', 'info');
@@ -239,9 +444,9 @@ function openAppShell() {
 async function initApp() {
   setupThemeToggle();
   setupFotoPreview();
-  loadRouteState();   // recuperar ruta activa / historial de localStorage
   applyRoleUI();   // apply role before data loads
   await loadAll();
+  await loadRouteState();   // recuperar ruta activa / historial (Supabase si admin, local si no)
   renderAll();
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/service-worker.js')
@@ -848,12 +1053,14 @@ function cancelActiveRoute() {
   confirmDialog(
     '¿Descartar la ruta?',
     'Se perderá el progreso registrado y no se guardará en el historial.',
-    () => {
+    async () => {
+      const routeId = activeRoute.id;
       activeRoute = null;
-      saveActiveRoute();
+      _cacheToLocal();
       _stopRaTimer();
       updateActiveRouteDot();
       renderRutaActiva();
+      await _deleteRouteFromSupabase(routeId);
       showToast('Ruta descartada', 'info');
     }
   );
@@ -863,7 +1070,7 @@ function cancelActiveRoute() {
 function finishActiveRoute() {
   if (!activeRoute) return;
   const pendientes = activeRoute.stops.filter(s => s.state === 'current' || s.state === 'pending');
-  const doFinish = () => {
+  const doFinish = async () => {
     // Cualquier parada que quedó como current/pending se marca como skipped
     activeRoute.stops.forEach(s => {
       if (s.state === 'current' || s.state === 'pending') {
@@ -876,6 +1083,7 @@ function finishActiveRoute() {
       started_at: activeRoute.started_at,
       ended_at: nowISO(),
       stops: activeRoute.stops.map(s => ({
+        id: s.id,           // mantener IDs para upsert correcto en Supabase
         loc_id: s.loc_id,
         loc_name: getLocName(s.loc_id),
         state: s.state,
@@ -886,14 +1094,14 @@ function finishActiveRoute() {
     };
     routeHistory.unshift(finished);
     if (routeHistory.length > 50) routeHistory = routeHistory.slice(0, 50); // tope
-    saveRouteHistory();
     activeRoute = null;
-    saveActiveRoute();
     _stopRaTimer();
     updateActiveRouteDot();
     renderRutaActiva();
     renderHistorial();
     showRouteSummary(finished);
+    // Persistir (no bloquea la UI)
+    await _persistFinishedRoute(finished);
   };
   if (pendientes.length > 0) {
     confirmDialog(
@@ -1234,10 +1442,11 @@ function clearRouteHistory() {
   confirmDialog(
     'Borrar historial de rutas',
     `Se eliminarán ${routeHistory.length} ruta${routeHistory.length>1?'s':''} del historial. Esta acción no se puede deshacer.`,
-    () => {
+    async () => {
       routeHistory = [];
       saveRouteHistory();
       renderHistorial();
+      await _clearHistoryFromSupabase();
       showToast('Historial borrado', 'info');
     }
   );
@@ -1731,7 +1940,7 @@ async function saveCheckin() {
       stop.done_at = nowISO();
       stop.checkin_id = checkinId;
       _advanceToNext(stopIdx);
-      saveActiveRoute();
+      await saveActiveRoute();
       updateActiveRouteDot();
     }
     window.__pendingRouteStopId = null;
@@ -1744,7 +1953,7 @@ async function saveCheckin() {
       stop.done_at = nowISO();
       stop.checkin_id = checkinId;
       _advanceToNext(stopIdx);
-      saveActiveRoute();
+      await saveActiveRoute();
       updateActiveRouteDot();
     }
   }
