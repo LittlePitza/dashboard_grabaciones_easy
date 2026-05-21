@@ -1215,9 +1215,15 @@ function navigate(viewId) {
   document.getElementById('view-'+viewId)?.classList.add('active');
   document.querySelector(`[data-view="${viewId}"]`)?.classList.add('active');
   if (viewId==='videos' && !currentVideoLocId) renderVideosGrid();
-  if (window.innerWidth<=768) document.getElementById('sidebar').classList.remove('open');
+  if (window.innerWidth<=768) {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('open');
+  }
 }
-function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('open');
+}
 
 // ─── MODAL UTILS ──────────────────────────────────────────────
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
