@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════
-   GRABACIÓN OBRAS — app.js  v1.2
+   GRABACIÓN OBRAS — app.js  v1.4
    ═══════════════════════════════════════════════════════════ */
 
 // ─── CONFIG ──────────────────────────────────────────────────
@@ -16,9 +16,37 @@ let checkins         = [];
 let currentLocFilter = 'todas';
 let currentRegFilter = 'todos';
 let rutaSelected     = [];
-let currentRutaTab   = 'sugerida';
+let currentRutaTab   = 'activa';
 let currentVideoFilter = 'todas';
 let currentVideoLocId  = null;   // obra abierta en detalle
+
+// ─── RUTA ACTIVA (persistida en localStorage) ────────────────
+// Estructura activeRoute:
+// { id, started_at, stops: [{ id, loc_id, state:'pending'|'current'|'done'|'skipped',
+//   arrived_at, done_at, checkin_id }] }
+let activeRoute  = null;       // ruta en curso (solo una a la vez)
+let routeHistory = [];         // array de rutas terminadas
+const LS_ACTIVE  = 'go_active_route_v1';
+const LS_HISTORY = 'go_route_history_v1';
+let _raTimer     = null;       // intervalo para actualizar el cronómetro
+
+function loadRouteState() {
+  try {
+    const a = localStorage.getItem(LS_ACTIVE);
+    activeRoute = a ? JSON.parse(a) : null;
+  } catch { activeRoute = null; }
+  try {
+    const h = localStorage.getItem(LS_HISTORY);
+    routeHistory = h ? JSON.parse(h) : [];
+  } catch { routeHistory = []; }
+}
+function saveActiveRoute() {
+  if (activeRoute) localStorage.setItem(LS_ACTIVE, JSON.stringify(activeRoute));
+  else localStorage.removeItem(LS_ACTIVE);
+}
+function saveRouteHistory() {
+  localStorage.setItem(LS_HISTORY, JSON.stringify(routeHistory));
+}
 
 // ─── SEED DATA ───────────────────────────────────────────────
 const SEED_LOCATIONS = [
@@ -76,31 +104,41 @@ function applyRoleUI() {
   }
 
   // Botón Admin (lector) / Salir (admin) en topbar
+  // (Quedan ocultos: ahora el control vive en el bloque del sidebar)
   const adminBtn  = document.getElementById('topbar-admin-btn');
   const logoutBtn = document.getElementById('topbar-logout-btn');
-  if (adminBtn)  adminBtn.style.display  = currentRole === 'lector' ? '' : 'none';
-  if (logoutBtn) logoutBtn.style.display = currentRole === 'admin'  ? '' : 'none';
+  if (adminBtn)  adminBtn.style.display  = 'none';
+  if (logoutBtn) logoutBtn.style.display = 'none';
 
-  // Banner de solo lectura
-  let banner = document.getElementById('readonly-banner');
-  if (currentRole === 'lector') {
-    if (!banner) {
-      banner = document.createElement('div');
-      banner.id = 'readonly-banner';
-      banner.style.cssText = [
-        'position:fixed','top:56px','left:0','right:0','z-index:80',
-        'background:var(--color-surface-offset)',
-        'color:var(--color-text-faint)',
-        'text-align:center','padding:5px',
-        'font-size:var(--text-xs)',
-        'border-bottom:1px solid var(--color-divider)',
-      ].join(';');
-      banner.innerHTML = 'Modo lectura · <button onclick="openAdminLogin()" style="background:none;border:none;color:var(--color-primary);font-size:inherit;cursor:pointer;font-weight:600;padding:0">Entrar como admin</button>';
-      document.body.appendChild(banner);
+  // Bloque modo en footer del sidebar (sustituye al banner flotante)
+  const modeBlock = document.getElementById('sidebar-mode-block');
+  if (modeBlock) {
+    if (currentRole === 'admin') {
+      modeBlock.innerHTML = `
+        <div class="sidebar-mode-row">
+          <span class="sidebar-mode-dot admin"></span>
+          <span class="sidebar-mode-label">Admin</span>
+        </div>
+        <button class="sidebar-mode-action" onclick="logout()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Cerrar sesión
+        </button>`;
+    } else {
+      modeBlock.innerHTML = `
+        <div class="sidebar-mode-row">
+          <span class="sidebar-mode-dot lector"></span>
+          <span class="sidebar-mode-label">Modo lectura</span>
+        </div>
+        <button class="sidebar-mode-action" onclick="openAdminLogin()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Entrar como admin
+        </button>`;
     }
-  } else if (banner) {
-    banner.remove();
   }
+
+  // Eliminar el viejo banner flotante si existe (de versiones previas)
+  const oldBanner = document.getElementById('readonly-banner');
+  if (oldBanner) oldBanner.remove();
 }
 
 // ── Abrir modal de login admin ────────────────────────────────
@@ -201,6 +239,7 @@ function openAppShell() {
 async function initApp() {
   setupThemeToggle();
   setupFotoPreview();
+  loadRouteState();   // recuperar ruta activa / historial de localStorage
   applyRoleUI();   // apply role before data loads
   await loadAll();
   renderAll();
@@ -516,12 +555,27 @@ function switchRutaTab(tab, btn) {
   document.querySelectorAll('.ruta-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.ruta-tab-panel').forEach(p => p.classList.remove('active'));
   if (btn) btn.classList.add('active');
+  else document.querySelector(`[data-tab="${tab}"]`)?.classList.add('active');
   document.getElementById('ruta-panel-' + tab)?.classList.add('active');
-  if (tab==='sugerida') renderRutaSugerida();
-  if (tab==='crear')    renderRutaPool();
-  if (tab==='semanas')  renderRutaSemanas();
+  if (tab==='activa')    renderRutaActiva();
+  if (tab==='sugerida')  renderRutaSugerida();
+  if (tab==='crear')     renderRutaPool();
+  if (tab==='semanas')   renderRutaSemanas();
+  if (tab==='historial') renderHistorial();
 }
-function renderRutaAll() { renderRutaSugerida(); renderRutaPool(); renderRutaSemanas(); }
+function renderRutaAll() {
+  renderRutaActiva();
+  renderRutaSugerida();
+  renderRutaPool();
+  renderRutaSemanas();
+  renderHistorial();
+  updateActiveRouteDot();
+}
+
+function updateActiveRouteDot() {
+  const dot = document.getElementById('ruta-active-dot');
+  if (dot) dot.style.display = activeRoute ? '' : 'none';
+}
 
 function buildSuggestedRoute() {
   return [...locations].map(loc => {
@@ -600,10 +654,12 @@ function renderSelectedOrder() {
   const container = document.getElementById('ruta-selected-order');
   const empty     = document.getElementById('ruta-selected-empty');
   const shareBt   = document.getElementById('ruta-share-btn');
+  const startBt   = document.getElementById('ruta-start-btn');
   const countBdg  = document.getElementById('ruta-count-badge');
   if (!container) return;
   if (countBdg) countBdg.textContent = rutaSelected.length;
   if (shareBt)  shareBt.disabled = rutaSelected.length===0;
+  if (startBt)  startBt.disabled = rutaSelected.length===0 || !!activeRoute;
   container.querySelectorAll('.ruta-order-item').forEach(el => el.remove());
   if (!rutaSelected.length) { if(empty) empty.style.display='flex'; return; }
   if (empty) empty.style.display='none';
@@ -673,6 +729,518 @@ function exportRuta(type) {
   const text=ids.map((id,i)=>`${i+1}. ${getLocName(id)}`).join('\n');
   if(navigator.share) navigator.share({title:'Mi ruta',text});
   else navigator.clipboard.writeText(text).then(()=>showToast('Ruta copiada ✓','success'));
+}
+
+// ═══════════════════════════════════════════════════════════
+// RUTA ACTIVA — ejecución en vivo
+// ═══════════════════════════════════════════════════════════
+
+// ─── Helpers de tiempo ────────────────────────────────────────
+function nowISO() { return new Date().toISOString(); }
+function fmtTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+function fmtDuration(ms) {
+  if (ms == null || isNaN(ms) || ms < 0) return '—';
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m`;
+  return `${s}s`;
+}
+function fmtDurationShort(ms) {
+  if (ms == null || isNaN(ms) || ms < 0) return '—';
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (h > 0) return `${h}h${String(m).padStart(2,'0')}`;
+  return `${m}m`;
+}
+
+// ─── Iniciar ruta ─────────────────────────────────────────────
+function startRouteFromCustom() {
+  if (!can('checkin')) { showToast('Modo lectura — inicia sesión como admin', 'error'); return; }
+  if (activeRoute)     { showToast('Ya hay una ruta en curso. Termínala primero.', 'error'); return; }
+  if (!rutaSelected.length) { showToast('Agrega locaciones a tu ruta primero', 'error'); return; }
+  _beginRoute(rutaSelected.slice());
+  rutaSelected = [];
+  renderRutaPool(); renderSelectedOrder(); updateBadges();
+}
+function startRouteFromSuggested() {
+  if (!can('checkin')) { showToast('Modo lectura — inicia sesión como admin', 'error'); return; }
+  if (activeRoute)     { showToast('Ya hay una ruta en curso. Termínala primero.', 'error'); return; }
+  const top = buildSuggestedRoute().slice(0, 5).map(l => l.id);
+  if (!top.length) { showToast('Sin locaciones para iniciar', 'error'); return; }
+  _beginRoute(top);
+}
+
+function _beginRoute(locIds) {
+  const start = nowISO();
+  activeRoute = {
+    id: genId(),
+    started_at: start,
+    stops: locIds.map((id, i) => ({
+      id: genId(),
+      loc_id: id,
+      state: i === 0 ? 'current' : 'pending',
+      arrived_at: i === 0 ? start : null,
+      done_at: null,
+      checkin_id: null,
+    })),
+  };
+  saveActiveRoute();
+  updateActiveRouteDot();
+  switchRutaTab('activa', document.querySelector('[data-tab="activa"]'));
+  showToast(`Ruta iniciada · ${locIds.length} paradas`, 'success');
+}
+
+// ─── Acciones por parada ──────────────────────────────────────
+function markStopDone(stopId) {
+  if (!activeRoute) return;
+  const idx = activeRoute.stops.findIndex(s => s.id === stopId);
+  if (idx < 0) return;
+  const stop = activeRoute.stops[idx];
+  if (stop.state === 'done') return;
+  stop.state = 'done';
+  stop.done_at = nowISO();
+  // Avanzar al siguiente pendiente
+  _advanceToNext(idx);
+  saveActiveRoute();
+  renderRutaActiva();
+}
+
+function skipStop(stopId) {
+  if (!activeRoute) return;
+  const idx = activeRoute.stops.findIndex(s => s.id === stopId);
+  if (idx < 0) return;
+  const stop = activeRoute.stops[idx];
+  stop.state = 'skipped';
+  stop.done_at = nowISO();
+  _advanceToNext(idx);
+  saveActiveRoute();
+  renderRutaActiva();
+}
+
+function _advanceToNext(fromIdx) {
+  const next = activeRoute.stops.findIndex((s, i) => i > fromIdx && s.state === 'pending');
+  if (next >= 0) {
+    activeRoute.stops[next].state = 'current';
+    activeRoute.stops[next].arrived_at = nowISO();
+  }
+}
+
+function openStopCheckin(stopId) {
+  if (!activeRoute) return;
+  const stop = activeRoute.stops.find(s => s.id === stopId); if (!stop) return;
+  // Marcar la parada en curso (si aún era pending por algún motivo)
+  if (stop.state === 'pending' && !stop.arrived_at) stop.arrived_at = nowISO();
+  // Guardar referencia para que saveCheckin pueda enlazar
+  window.__pendingRouteStopId = stop.id;
+  openCheckinModal(stop.loc_id);
+}
+
+// ─── Cancelar ruta sin guardar ───────────────────────────────
+function cancelActiveRoute() {
+  if (!activeRoute) return;
+  confirmDialog(
+    '¿Descartar la ruta?',
+    'Se perderá el progreso registrado y no se guardará en el historial.',
+    () => {
+      activeRoute = null;
+      saveActiveRoute();
+      _stopRaTimer();
+      updateActiveRouteDot();
+      renderRutaActiva();
+      showToast('Ruta descartada', 'info');
+    }
+  );
+}
+
+// ─── Finalizar ruta y guardar en historial ───────────────────
+function finishActiveRoute() {
+  if (!activeRoute) return;
+  const pendientes = activeRoute.stops.filter(s => s.state === 'current' || s.state === 'pending');
+  const doFinish = () => {
+    // Cualquier parada que quedó como current/pending se marca como skipped
+    activeRoute.stops.forEach(s => {
+      if (s.state === 'current' || s.state === 'pending') {
+        s.state = 'skipped';
+        if (!s.done_at) s.done_at = nowISO();
+      }
+    });
+    const finished = {
+      id: activeRoute.id,
+      started_at: activeRoute.started_at,
+      ended_at: nowISO(),
+      stops: activeRoute.stops.map(s => ({
+        loc_id: s.loc_id,
+        loc_name: getLocName(s.loc_id),
+        state: s.state,
+        arrived_at: s.arrived_at,
+        done_at: s.done_at,
+        checkin_id: s.checkin_id,
+      })),
+    };
+    routeHistory.unshift(finished);
+    if (routeHistory.length > 50) routeHistory = routeHistory.slice(0, 50); // tope
+    saveRouteHistory();
+    activeRoute = null;
+    saveActiveRoute();
+    _stopRaTimer();
+    updateActiveRouteDot();
+    renderRutaActiva();
+    renderHistorial();
+    showRouteSummary(finished);
+  };
+  if (pendientes.length > 0) {
+    confirmDialog(
+      `Terminar ruta con ${pendientes.length} pendiente${pendientes.length>1?'s':''}`,
+      `Las paradas no completadas se marcarán como omitidas. ¿Continuar?`,
+      doFinish
+    );
+  } else {
+    doFinish();
+  }
+}
+
+// ─── Render: Ruta Activa ──────────────────────────────────────
+function renderRutaActiva() {
+  const empty = document.getElementById('ruta-activa-empty');
+  const wrap  = document.getElementById('ruta-activa-wrap');
+  if (!empty || !wrap) return;
+
+  if (!activeRoute) {
+    empty.style.display = 'flex';
+    wrap.style.display  = 'none';
+    _stopRaTimer();
+    return;
+  }
+  empty.style.display = 'none';
+  wrap.style.display  = '';
+
+  // Header
+  const startedAt = new Date(activeRoute.started_at);
+  document.getElementById('ruta-activa-title').textContent =
+    `Ruta del ${startedAt.toLocaleDateString('es-MX', { day:'2-digit', month:'long' })}`;
+  document.getElementById('ruta-activa-sub').textContent =
+    `Iniciada a las ${fmtTime(activeRoute.started_at)} · ${activeRoute.stops.length} parada${activeRoute.stops.length!==1?'s':''}`;
+
+  // Stats
+  const done    = activeRoute.stops.filter(s => s.state === 'done').length;
+  const skipped = activeRoute.stops.filter(s => s.state === 'skipped').length;
+  const total   = activeRoute.stops.length;
+  const pending = total - done - skipped;
+  document.getElementById('ra-progress').textContent = `${done}/${total}`;
+  document.getElementById('ra-pending').textContent  = pending;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  document.getElementById('ra-progress-fill').style.width = pct + '%';
+  // Cronómetro inicial (se actualizará por _startRaTimer)
+  _updateElapsedDisplay();
+
+  // Timeline
+  const tl = document.getElementById('ra-timeline');
+  tl.innerHTML = activeRoute.stops.map((stop, i) => {
+    const loc = locations.find(l => l.id === stop.loc_id) || { name: stop.loc_id, address: '' };
+    const stopHTML = _renderStop(stop, i, loc);
+    // Conector con tiempo de traslado entre paradas
+    let legHTML = '';
+    if (i < activeRoute.stops.length - 1) {
+      const cur = stop;
+      const nxt = activeRoute.stops[i + 1];
+      let legTxt = '';
+      if (cur.done_at && nxt.arrived_at) {
+        legTxt = `${fmtDurationShort(new Date(nxt.arrived_at) - new Date(cur.done_at))} de traslado`;
+      } else if (cur.state === 'done' || cur.state === 'skipped') {
+        legTxt = 'siguiente parada';
+      } else {
+        legTxt = '—';
+      }
+      legHTML = `<div class="ra-leg">${legTxt}</div>`;
+    }
+    return stopHTML + legHTML;
+  }).join('');
+
+  // Acciones globales
+  const actEl = document.getElementById('ra-actions');
+  actEl.innerHTML = `
+    <div class="ra-actions-left">
+      <button class="btn btn-ghost btn-sm" onclick="cancelActiveRoute()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        Descartar
+      </button>
+    </div>
+    <div class="ra-actions-right">
+      <button class="btn btn-secondary btn-sm" onclick="exportActiveRoute()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+        Compartir
+      </button>
+      <button class="btn btn-primary btn-sm" onclick="finishActiveRoute()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        Terminar ruta
+      </button>
+    </div>`;
+
+  _startRaTimer();
+  updateActiveRouteDot();
+}
+
+function _renderStop(stop, i, loc) {
+  const num = i + 1;
+  const state = stop.state;
+  let badge = '';
+  if (state === 'done')    badge = `<span class="ra-stop-badge done">Completada</span>`;
+  else if (state === 'current') badge = `<span class="ra-stop-badge current">En curso</span>`;
+  else if (state === 'skipped') badge = `<span class="ra-stop-badge skipped">Omitida</span>`;
+  else                          badge = `<span class="ra-stop-badge pending">Pendiente</span>`;
+
+  // Urgency badge
+  const st = locStatus(loc);
+  const due = daysUntilDue(loc);
+  let urgBadge = '';
+  if (st === 'overdue') urgBadge = `<span class="ra-stop-badge overdue">Vencida ${Math.abs(due)}d</span>`;
+
+  // Meta line
+  const meta = [
+    loc.address ? `<span class="ra-stop-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${esc(loc.address)}</span>` : '',
+    `<span class="ra-stop-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Cada ${loc.freq_days||15}d</span>`,
+    loc.last_checkin ? `<span class="ra-stop-meta-item">Últ: ${fmtDate(loc.last_checkin)}</span>` : `<span class="ra-stop-meta-item">Sin grabar</span>`,
+  ].filter(Boolean).join('');
+
+  // Tiempos registrados (solo si hay datos)
+  let times = '';
+  const parts = [];
+  if (stop.arrived_at) parts.push(`<span class="ra-stop-times-item">▶ Llegada ${fmtTime(stop.arrived_at)}</span>`);
+  if (stop.done_at) {
+    const lab = stop.state === 'skipped' ? 'Omitida' : 'Hecho';
+    parts.push(`<span class="ra-stop-times-item">✓ ${lab} ${fmtTime(stop.done_at)}</span>`);
+  }
+  if (stop.arrived_at && stop.done_at) {
+    parts.push(`<span class="ra-stop-times-item">⏱ ${fmtDurationShort(new Date(stop.done_at) - new Date(stop.arrived_at))}</span>`);
+  }
+  if (parts.length) times = `<div class="ra-stop-times">${parts.join('')}</div>`;
+
+  // Acciones según estado
+  let actions = '';
+  if (state === 'current') {
+    actions = `
+      <div class="ra-stop-actions">
+        <button class="btn btn-primary btn-sm" onclick="openStopCheckin('${stop.id}')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          Hacer check-in
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="markStopDone('${stop.id}')" title="Marcar como hecho sin check-in">Hecho sin check-in</button>
+        <button class="btn btn-ghost btn-sm" onclick="skipStop('${stop.id}')">Omitir</button>
+      </div>`;
+  } else if (state === 'pending') {
+    actions = `
+      <div class="ra-stop-actions">
+        <button class="btn btn-ghost btn-sm" onclick="openStopCheckin('${stop.id}')">Adelantar check-in</button>
+        <button class="btn btn-ghost btn-sm" onclick="skipStop('${stop.id}')">Omitir</button>
+      </div>`;
+  }
+
+  return `
+    <div class="ra-stop" data-state="${state}">
+      <div class="ra-stop-node">
+        <span class="ra-stop-node-num">${num}</span>
+        <svg class="ra-stop-node-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="ra-stop-card">
+        <div class="ra-stop-head">
+          <div class="ra-stop-info">
+            <div class="ra-stop-name">${esc(loc.name)}</div>
+            <div class="ra-stop-meta">${meta}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start">${urgBadge}${badge}</div>
+        </div>
+        ${times}
+        ${actions}
+      </div>
+    </div>`;
+}
+
+// ─── Cronómetro en vivo ───────────────────────────────────────
+function _startRaTimer() {
+  _stopRaTimer();
+  _raTimer = setInterval(_updateElapsedDisplay, 30 * 1000); // cada 30s
+}
+function _stopRaTimer() {
+  if (_raTimer) { clearInterval(_raTimer); _raTimer = null; }
+}
+function _updateElapsedDisplay() {
+  if (!activeRoute) return;
+  const el = document.getElementById('ra-elapsed'); if (!el) return;
+  const ms = Date.now() - new Date(activeRoute.started_at).getTime();
+  el.textContent = fmtDurationShort(ms);
+}
+
+// ─── Compartir ruta activa ────────────────────────────────────
+function exportActiveRoute() {
+  if (!activeRoute) return;
+  const lines = activeRoute.stops.map((s, i) => {
+    const name = getLocName(s.loc_id);
+    const mark = s.state==='done' ? '✓' : s.state==='skipped' ? '✗' : s.state==='current' ? '→' : '·';
+    return `${mark} ${i+1}. ${name}`;
+  });
+  const text = `Ruta del día — Iniciada ${fmtTime(activeRoute.started_at)}\n\n` + lines.join('\n');
+  if (navigator.share) navigator.share({ title: 'Mi ruta', text });
+  else navigator.clipboard.writeText(text).then(()=>showToast('Ruta copiada ✓','success'));
+}
+
+// ─── Resumen post-ruta (modal) ────────────────────────────────
+function showRouteSummary(route) {
+  const body = document.getElementById('ruta-resumen-body');
+  if (!body) return;
+  const totalMs   = new Date(route.ended_at) - new Date(route.started_at);
+  const done      = route.stops.filter(s => s.state === 'done').length;
+  const skipped   = route.stops.filter(s => s.state === 'skipped').length;
+  const total     = route.stops.length;
+  // Tiempo promedio por parada completada
+  const doneStops = route.stops.filter(s => s.state === 'done' && s.arrived_at && s.done_at);
+  const avgMs = doneStops.length > 0
+    ? doneStops.reduce((sum, s) => sum + (new Date(s.done_at) - new Date(s.arrived_at)), 0) / doneStops.length
+    : null;
+  // Tiempo total en traslados (entre paradas consecutivas)
+  let travelMs = 0; let travelCount = 0;
+  for (let i = 0; i < route.stops.length - 1; i++) {
+    const a = route.stops[i], b = route.stops[i+1];
+    if (a.done_at && b.arrived_at) {
+      travelMs += new Date(b.arrived_at) - new Date(a.done_at);
+      travelCount++;
+    }
+  }
+
+  body.innerHTML = `
+    <div class="resumen-headline">
+      <div class="resumen-headline-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="resumen-headline-text">
+        <div class="resumen-headline-title">¡Buen trabajo!</div>
+        <div class="resumen-headline-sub">${done} de ${total} parada${total!==1?'s':''} completada${done!==1?'s':''}${skipped>0?` · ${skipped} omitida${skipped!==1?'s':''}`:''}</div>
+      </div>
+    </div>
+    <div class="resumen-grid">
+      <div class="resumen-stat-card">
+        <span class="resumen-stat-label">Duración</span>
+        <span class="resumen-stat-val">${fmtDurationShort(totalMs)}</span>
+        <span class="resumen-stat-sub">${fmtTime(route.started_at)} → ${fmtTime(route.ended_at)}</span>
+      </div>
+      <div class="resumen-stat-card">
+        <span class="resumen-stat-label">Promedio</span>
+        <span class="resumen-stat-val">${avgMs!=null?fmtDurationShort(avgMs):'—'}</span>
+        <span class="resumen-stat-sub">por parada</span>
+      </div>
+      <div class="resumen-stat-card">
+        <span class="resumen-stat-label">Traslados</span>
+        <span class="resumen-stat-val">${travelCount>0?fmtDurationShort(travelMs):'—'}</span>
+        <span class="resumen-stat-sub">${travelCount} tramo${travelCount!==1?'s':''}</span>
+      </div>
+      <div class="resumen-stat-card">
+        <span class="resumen-stat-label">Check-ins</span>
+        <span class="resumen-stat-val">${route.stops.filter(s=>s.checkin_id).length}</span>
+        <span class="resumen-stat-sub">registrados</span>
+      </div>
+    </div>
+    <div class="resumen-list-title">Paradas</div>
+    <div class="resumen-list">
+      ${route.stops.map((s, i) => {
+        const cls = s.state === 'done' ? 'done' : s.state === 'skipped' ? 'skipped' : '';
+        const dur = (s.arrived_at && s.done_at)
+          ? fmtDurationShort(new Date(s.done_at) - new Date(s.arrived_at))
+          : '—';
+        return `<div class="hc-stop-row ${cls}">
+          <span class="hc-stop-num">${i+1}</span>
+          <span class="hc-stop-name">${esc(s.loc_name)}</span>
+          <span class="hc-stop-time">${dur}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+  openModal('modal-ruta-resumen');
+}
+
+function goToHistorial() {
+  closeModal('modal-ruta-resumen');
+  navigate('ruta');
+  switchRutaTab('historial', document.querySelector('[data-tab="historial"]'));
+}
+
+// ─── Historial ────────────────────────────────────────────────
+function renderHistorial() {
+  const list = document.getElementById('historial-list');
+  const clearBtn = document.getElementById('historial-clear-btn');
+  if (!list) return;
+  if (!routeHistory.length) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/><polyline points="12 7 12 12 15 14"/></svg>
+        <h3>Sin rutas completadas</h3>
+        <p>Cuando termines una ruta, aparecerá aquí con todos sus tiempos.</p>
+      </div>`;
+    if (clearBtn) clearBtn.style.display = 'none';
+    return;
+  }
+  if (clearBtn) clearBtn.style.display = '';
+
+  list.innerHTML = routeHistory.map(r => {
+    const totalMs = new Date(r.ended_at) - new Date(r.started_at);
+    const done    = r.stops.filter(s => s.state === 'done').length;
+    const skipped = r.stops.filter(s => s.state === 'skipped').length;
+    const total   = r.stops.length;
+    const startDate = new Date(r.started_at);
+    const dateLabel = startDate.toLocaleDateString('es-MX', { weekday: 'long', day:'2-digit', month:'long', year:'numeric' });
+    // Tiempo de traslado total
+    let travelMs = 0;
+    for (let i = 0; i < r.stops.length - 1; i++) {
+      const a = r.stops[i], b = r.stops[i+1];
+      if (a.done_at && b.arrived_at) travelMs += new Date(b.arrived_at) - new Date(a.done_at);
+    }
+    const checkinsHechos = r.stops.filter(s => s.checkin_id).length;
+    return `<div class="historial-card">
+      <div class="historial-card-head">
+        <div>
+          <div class="historial-card-date">${dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)}</div>
+          <div class="historial-card-time">${fmtTime(r.started_at)} → ${fmtTime(r.ended_at)} · ${fmtDurationShort(totalMs)}</div>
+        </div>
+        <div class="historial-card-stats">
+          <div class="hc-stat"><span class="hc-stat-label">Paradas</span><span class="hc-stat-val">${done}/${total}</span></div>
+          <div class="hc-stat"><span class="hc-stat-label">Check-ins</span><span class="hc-stat-val">${checkinsHechos}</span></div>
+          <div class="hc-stat"><span class="hc-stat-label">Traslados</span><span class="hc-stat-val">${travelMs>0?fmtDurationShort(travelMs):'—'}</span></div>
+          ${skipped>0?`<div class="hc-stat"><span class="hc-stat-label">Omitidas</span><span class="hc-stat-val">${skipped}</span></div>`:''}
+        </div>
+      </div>
+      <div class="historial-card-stops">
+        ${r.stops.map((s, i) => {
+          const cls = s.state === 'done' ? 'done' : s.state === 'skipped' ? 'skipped' : '';
+          const dur = (s.arrived_at && s.done_at)
+            ? fmtDurationShort(new Date(s.done_at) - new Date(s.arrived_at))
+            : '—';
+          return `<div class="hc-stop-row ${cls}">
+            <span class="hc-stop-num">${i+1}</span>
+            <span class="hc-stop-name">${esc(s.loc_name)}</span>
+            <span class="hc-stop-time">${dur}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function clearRouteHistory() {
+  if (!routeHistory.length) return;
+  confirmDialog(
+    'Borrar historial de rutas',
+    `Se eliminarán ${routeHistory.length} ruta${routeHistory.length>1?'s':''} del historial. Esta acción no se puede deshacer.`,
+    () => {
+      routeHistory = [];
+      saveRouteHistory();
+      renderHistorial();
+      showToast('Historial borrado', 'info');
+    }
+  );
 }
 
 // ─── RUTA UTILS ───────────────────────────────────────────────
@@ -1152,6 +1720,35 @@ async function saveCheckin() {
   const idx = checkins.findIndex(c=>c.id===obj.id);
   if (idx>-1) checkins[idx]=obj; else checkins.push(obj);
   updateLastCheckins();
+
+  // ── HOOK: si este check-in corresponde a la parada actual de la ruta activa,
+  // marcar como hecha y avanzar automáticamente
+  if (activeRoute && window.__pendingRouteStopId) {
+    const stop = activeRoute.stops.find(s => s.id === window.__pendingRouteStopId);
+    if (stop && stop.loc_id === locId && stop.state !== 'done' && stop.state !== 'skipped') {
+      const stopIdx = activeRoute.stops.findIndex(s => s.id === stop.id);
+      stop.state = 'done';
+      stop.done_at = nowISO();
+      stop.checkin_id = checkinId;
+      _advanceToNext(stopIdx);
+      saveActiveRoute();
+      updateActiveRouteDot();
+    }
+    window.__pendingRouteStopId = null;
+  } else if (activeRoute) {
+    // Caso alterno: el usuario abrió check-in desde fuera de la ruta pero coincide con la parada current
+    const stop = activeRoute.stops.find(s => s.loc_id === locId && s.state === 'current');
+    if (stop) {
+      const stopIdx = activeRoute.stops.findIndex(s => s.id === stop.id);
+      stop.state = 'done';
+      stop.done_at = nowISO();
+      stop.checkin_id = checkinId;
+      _advanceToNext(stopIdx);
+      saveActiveRoute();
+      updateActiveRouteDot();
+    }
+  }
+
   closeModal('modal-checkin');
   renderAll();
   if (currentVideoLocId===locId) renderVideoDetail(locId);
@@ -1170,6 +1767,21 @@ function deleteLoc(id) {
     locations=locations.filter(l=>l.id!==id);
     checkins =checkins.filter(c=>c.location_id!==id);
     rutaSelected=rutaSelected.filter(x=>x!==id);
+    // Si la locación está en la ruta activa, quitarla
+    if (activeRoute) {
+      const before = activeRoute.stops.length;
+      activeRoute.stops = activeRoute.stops.filter(s => s.loc_id !== id);
+      if (activeRoute.stops.length !== before) {
+        // Si quedó sin "current", promover la primera pending
+        if (!activeRoute.stops.some(s => s.state === 'current')) {
+          const firstPending = activeRoute.stops.find(s => s.state === 'pending');
+          if (firstPending) { firstPending.state = 'current'; firstPending.arrived_at = nowISO(); }
+        }
+        // Si quedó vacía, descartar
+        if (!activeRoute.stops.length) { activeRoute = null; _stopRaTimer(); }
+        saveActiveRoute();
+      }
+    }
     renderAll();
     showToast('Locación eliminada','success');
   });
@@ -1227,10 +1839,17 @@ function toggleSidebar() {
 
 // ─── MODAL UTILS ──────────────────────────────────────────────
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  // Si se cierra el modal de check-in sin guardar, limpiar el enlace pendiente con la ruta
+  if (id === 'modal-checkin') window.__pendingRouteStopId = null;
+}
 function closeOnOverlay(e,id) { if(e.target===e.currentTarget) closeModal(id); }
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape') document.querySelectorAll('.modal-overlay.open,.confirm-overlay.open').forEach(el=>el.classList.remove('open'));
+  if(e.key==='Escape') document.querySelectorAll('.modal-overlay.open,.confirm-overlay.open').forEach(el=>{
+    el.classList.remove('open');
+    if (el.id === 'modal-checkin') window.__pendingRouteStopId = null;
+  });
 });
 
 let confirmCallback=null;

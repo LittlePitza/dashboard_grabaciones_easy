@@ -1,9 +1,9 @@
-/* ── SERVICE WORKER v1.3 ─────────────────────────────────── */
+/* ── SERVICE WORKER v1.4 ─────────────────────────────────── */
 /* Estrategia: Network-first para HTML/JS/CSS, cache como fallback.
    Así siempre se sirve la versión más nueva si hay red,
    y funciona offline con la última versión descargada. */
 
-const CACHE = 'grabacion-obras-v1.3';
+const CACHE = 'grabacion-obras-v1.4';
 const CORE  = ['/', '/index.html', '/style.css', '/app.js'];
 
 self.addEventListener('install', e => {

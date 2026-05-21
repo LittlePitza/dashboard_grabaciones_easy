@@ -135,8 +135,10 @@
         </button>
       </div>
       <div class="sidebar-footer">
+        <!-- Bloque de modo (lector / admin) — se rellena desde JS -->
+        <div id="sidebar-mode-block" class="sidebar-mode-block"></div>
         <div class="sidebar-stat"><span>Locaciones</span><span class="sidebar-stat-val" id="sidebar-loc-count">—</span></div>
-        <div class="sidebar-stat"><span>Versión</span><span class="sidebar-stat-val">1.3</span></div>
+        <div class="sidebar-stat"><span>Versión</span><span class="sidebar-stat-val">1.4</span></div>
       </div>
     </nav>
 
@@ -220,32 +222,90 @@
         <div class="page-header">
           <div>
             <h1 class="page-title">Mi Ruta</h1>
-            <p class="page-subtitle">Planea y optimiza tus visitas de grabación</p>
+            <p class="page-subtitle">Planea y ejecuta tus visitas de grabación</p>
           </div>
         </div>
         <div class="ruta-tabs">
-          <button class="ruta-tab active" data-tab="sugerida" onclick="switchRutaTab('sugerida',this)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Ruta sugerida
+          <button class="ruta-tab active" data-tab="activa" onclick="switchRutaTab('activa',this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Ruta activa
+            <span class="ruta-tab-dot" id="ruta-active-dot" style="display:none"></span>
+          </button>
+          <button class="ruta-tab" data-tab="sugerida" onclick="switchRutaTab('sugerida',this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Sugerida
           </button>
           <button class="ruta-tab" data-tab="crear" onclick="switchRutaTab('crear',this)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Crear ruta
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Crear
           </button>
           <button class="ruta-tab" data-tab="semanas" onclick="switchRutaTab('semanas',this)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Por semana
           </button>
+          <button class="ruta-tab" data-tab="historial" onclick="switchRutaTab('historial',this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/><polyline points="12 7 12 12 15 14"/></svg>Historial
+          </button>
         </div>
-        <div class="ruta-tab-panel active" id="ruta-panel-sugerida">
+
+        <!-- ─── PANEL: RUTA ACTIVA (timeline tipo metro) ────────────────── -->
+        <div class="ruta-tab-panel active" id="ruta-panel-activa">
+          <!-- Estado vacío: no hay ruta iniciada -->
+          <div class="ruta-activa-empty" id="ruta-activa-empty">
+            <div class="ruta-activa-empty-icon">
+              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 6h10M14 18H8.5a3.5 3.5 0 0 1 0-7H19a3.5 3.5 0 0 0 0-7H10"/></svg>
+            </div>
+            <h3>No hay ruta activa</h3>
+            <p>Crea una ruta en la pestaña <strong>Crear</strong> o usa la <strong>Sugerida</strong>, luego inicia para empezar a hacer check-ins.</p>
+            <div class="ruta-activa-empty-actions">
+              <button class="btn btn-secondary btn-sm" onclick="switchRutaTab('sugerida', document.querySelector('[data-tab=sugerida]'))">Ver sugerida</button>
+              <button class="btn btn-primary btn-sm" onclick="switchRutaTab('crear', document.querySelector('[data-tab=crear]'))">Crear ruta</button>
+            </div>
+          </div>
+
+          <!-- Ruta activa en curso -->
+          <div class="ruta-activa-wrap" id="ruta-activa-wrap" style="display:none">
+            <!-- Header con stats en vivo -->
+            <div class="ruta-activa-header">
+              <div class="ruta-activa-meta">
+                <div class="ruta-activa-kicker">EN CURSO</div>
+                <h2 class="ruta-activa-title" id="ruta-activa-title">Ruta del día</h2>
+                <div class="ruta-activa-sub" id="ruta-activa-sub">—</div>
+              </div>
+              <div class="ruta-activa-stats">
+                <div class="ra-stat"><span class="ra-stat-label">Progreso</span><span class="ra-stat-val" id="ra-progress">0/0</span></div>
+                <div class="ra-stat"><span class="ra-stat-label">Tiempo</span><span class="ra-stat-val" id="ra-elapsed">0m</span></div>
+                <div class="ra-stat"><span class="ra-stat-label">Pendientes</span><span class="ra-stat-val" id="ra-pending">0</span></div>
+              </div>
+            </div>
+
+            <!-- Barra de progreso -->
+            <div class="ra-progress-bar"><div class="ra-progress-fill" id="ra-progress-fill"></div></div>
+
+            <!-- Timeline tipo metro -->
+            <div class="ra-timeline" id="ra-timeline"></div>
+
+            <!-- Acciones globales -->
+            <div class="ra-actions" id="ra-actions"></div>
+          </div>
+        </div>
+
+        <!-- ─── PANEL: SUGERIDA ────────────────────────────────────────── -->
+        <div class="ruta-tab-panel" id="ruta-panel-sugerida">
           <div class="sugerida-header">
             <div class="sugerida-info">
               <div class="sugerida-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Generada automáticamente</div>
               <p class="sugerida-desc">Las obras más urgentes ordenadas por prioridad.</p>
             </div>
-            <button class="btn btn-secondary btn-sm" onclick="exportRuta('sugerida')">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>Compartir
-            </button>
+            <div style="display:flex;gap:var(--space-2);flex-wrap:wrap">
+              <button class="btn btn-secondary btn-sm" onclick="exportRuta('sugerida')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>Compartir
+              </button>
+              <button class="btn btn-primary btn-sm role-editor" onclick="startRouteFromSuggested()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>Iniciar top 5
+              </button>
+            </div>
           </div>
           <div id="ruta-sugerida-list" class="ruta-sugerida-list"></div>
         </div>
+
+        <!-- ─── PANEL: CREAR ───────────────────────────────────────────── -->
         <div class="ruta-tab-panel" id="ruta-panel-crear">
           <div class="crear-ruta-layout">
             <div class="crear-ruta-pool">
@@ -260,8 +320,11 @@
                 <h3>Mi ruta del día <span class="ruta-count-badge" id="ruta-count-badge">0</span></h3>
                 <div class="crear-header-actions">
                   <button class="btn btn-ghost btn-sm" onclick="clearRuta()">Limpiar</button>
-                  <button class="btn btn-primary btn-sm" onclick="exportRuta('custom')" id="ruta-share-btn" disabled>
+                  <button class="btn btn-secondary btn-sm" onclick="exportRuta('custom')" id="ruta-share-btn" disabled>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>Compartir
+                  </button>
+                  <button class="btn btn-primary btn-sm role-editor" onclick="startRouteFromCustom()" id="ruta-start-btn" disabled>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>Iniciar ruta
                   </button>
                 </div>
               </div>
@@ -274,12 +337,27 @@
             </div>
           </div>
         </div>
+
+        <!-- ─── PANEL: POR SEMANA ─────────────────────────────────────── -->
         <div class="ruta-tab-panel" id="ruta-panel-semanas">
           <div class="ruta-toolbar">
             <input type="search" id="ruta-search" class="search-input ruta-search" placeholder="Buscar locación…" oninput="renderRutaSemanas()">
             <div class="ruta-summary"><span>Semanas: <strong id="ruta-weeks-count">0</strong></span></div>
           </div>
           <div id="ruta-timeline" class="ruta-timeline"></div>
+        </div>
+
+        <!-- ─── PANEL: HISTORIAL ──────────────────────────────────────── -->
+        <div class="ruta-tab-panel" id="ruta-panel-historial">
+          <div class="historial-header">
+            <div>
+              <p class="page-subtitle" style="margin:0">Rutas completadas anteriormente.</p>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="clearRouteHistory()" id="historial-clear-btn" style="display:none">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>Limpiar
+            </button>
+          </div>
+          <div id="historial-list" class="historial-list"></div>
         </div>
       </section>
 
@@ -413,6 +491,21 @@
     <div class="confirm-actions">
       <button class="btn btn-ghost" onclick="closeConfirm()">Cancelar</button>
       <button class="btn btn-danger" id="confirm-ok-btn">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: RESUMEN DE RUTA TERMINADA -->
+<div class="modal-overlay" id="modal-ruta-resumen" role="dialog" aria-modal="true" onclick="closeOnOverlay(event,'modal-ruta-resumen')">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <h2 class="modal-title">Ruta completada</h2>
+      <button class="icon-btn" onclick="closeModal('modal-ruta-resumen')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body" id="ruta-resumen-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-ruta-resumen')">Cerrar</button>
+      <button class="btn btn-primary" onclick="goToHistorial()">Ver historial</button>
     </div>
   </div>
 </div>
