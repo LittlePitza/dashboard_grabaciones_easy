@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════
-   GRABACIÓN OBRAS — app.js  v1.6
+   GRABACIÓN OBRAS — app.js  v1.7
    ═══════════════════════════════════════════════════════════ */
 
 // ─── CONFIG ──────────────────────────────────────────────────
@@ -141,15 +141,26 @@ function _cacheToLocal() {
 }
 
 // Migración inicial: si hay datos en localStorage y no en Supabase, los sube
+// Verifica cada ruta antes de subir para no crear duplicados
 async function _migrateLocalToSupabase() {
   try {
+    let migrated = 0;
     if (activeRoute) {
-      await _pushRouteToSupabase(activeRoute, null);
+      // Solo subir si no existe ya en Supabase
+      const { data } = await sb.from('routes').select('id').eq('id', activeRoute.id).limit(1);
+      if (!data || !data.length) {
+        await _pushRouteToSupabase(activeRoute, null);
+        migrated++;
+      }
     }
     for (const r of routeHistory) {
-      await _pushRouteToSupabase(r, r.ended_at);
+      const { data } = await sb.from('routes').select('id').eq('id', r.id).limit(1);
+      if (!data || !data.length) {
+        await _pushRouteToSupabase(r, r.ended_at);
+        migrated++;
+      }
     }
-    showToast('Rutas locales migradas a la nube', 'success');
+    if (migrated > 0) showToast(`${migrated} ruta${migrated > 1 ? 's' : ''} migrada${migrated > 1 ? 's' : ''} a la nube`, 'success');
   } catch (e) {
     console.warn('[Routes] migración falló:', e.message);
   }
@@ -971,23 +982,52 @@ function fmtDurationShort(ms) {
 }
 
 // ─── Iniciar ruta ─────────────────────────────────────────────
-function startRouteFromCustom() {
-  if (!can('checkin')) { showToast('Modo lectura — inicia sesión como admin', 'error'); return; }
-  if (activeRoute)     { showToast('Ya hay una ruta en curso. Termínala primero.', 'error'); return; }
-  if (!rutaSelected.length) { showToast('Agrega locaciones a tu ruta primero', 'error'); return; }
-  _beginRoute(rutaSelected.slice());
-  rutaSelected = [];
-  renderRutaPool(); renderSelectedOrder(); updateBadges();
-}
-function startRouteFromSuggested() {
-  if (!can('checkin')) { showToast('Modo lectura — inicia sesión como admin', 'error'); return; }
-  if (activeRoute)     { showToast('Ya hay una ruta en curso. Termínala primero.', 'error'); return; }
-  const top = buildSuggestedRoute().slice(0, 5).map(l => l.id);
-  if (!top.length) { showToast('Sin locaciones para iniciar', 'error'); return; }
-  _beginRoute(top);
+let _startingRoute = false; // guard contra doble tap
+
+async function startRouteFromCustom() {
+  if (!can('checkin'))     { showToast('Modo lectura — inicia sesión como admin', 'error'); return; }
+  if (activeRoute)         { showToast('Ya hay una ruta en curso. Termínala primero.', 'error'); return; }
+  if (_startingRoute)      { return; } // doble tap — ignorar
+  if (!rutaSelected.length){ showToast('Agrega locaciones a tu ruta primero', 'error'); return; }
+  _startingRoute = true;
+  try {
+    await _beginRoute(rutaSelected.slice());
+    rutaSelected = [];
+    renderRutaPool(); renderSelectedOrder(); updateBadges();
+  } finally {
+    _startingRoute = false;
+  }
 }
 
-function _beginRoute(locIds) {
+async function startRouteFromSuggested() {
+  if (!can('checkin')) { showToast('Modo lectura — inicia sesión como admin', 'error'); return; }
+  if (activeRoute)     { showToast('Ya hay una ruta en curso. Termínala primero.', 'error'); return; }
+  if (_startingRoute)  { return; }
+  const top = buildSuggestedRoute().slice(0, 5).map(l => l.id);
+  if (!top.length) { showToast('Sin locaciones para iniciar', 'error'); return; }
+  _startingRoute = true;
+  try {
+    await _beginRoute(top);
+  } finally {
+    _startingRoute = false;
+  }
+}
+
+async function _beginRoute(locIds) {
+  // Fix: verificar en Supabase si ya hay una activa (por si el estado local está desincronizado)
+  if (_routesBackend === 'supabase' && currentRole === 'admin') {
+    try {
+      const { data } = await sb.from('routes').select('id').is('ended_at', null).limit(1);
+      if (data && data.length > 0) {
+        showToast('Ya existe una ruta activa en la nube. Recarga la app.', 'error');
+        // Re-cargar estado para sincronizar
+        await loadRouteState();
+        renderRutaAll();
+        return;
+      }
+    } catch { /* si falla la consulta, seguimos — el unique index de Supabase lo rechazará */ }
+  }
+
   const start = nowISO();
   activeRoute = {
     id: genId(),
@@ -999,12 +1039,22 @@ function _beginRoute(locIds) {
       arrived_at: i === 0 ? start : null,
       done_at: null,
       checkin_id: null,
+      visit_note: null,
     })),
   };
-  saveActiveRoute();
+  _cacheToLocal(); // guardar local inmediatamente
   updateActiveRouteDot();
   switchRutaTab('activa', document.querySelector('[data-tab="activa"]'));
   showToast(`Ruta iniciada · ${locIds.length} paradas`, 'success');
+  // Persistir en Supabase — si hay conflicto (unique index), lo reporta sin crashear
+  if (_routesBackend === 'supabase' && currentRole === 'admin') {
+    try {
+      await _pushRouteToSupabase(activeRoute, null);
+    } catch (e) {
+      console.warn('[Routes] _beginRoute Supabase falló:', e.message);
+      // No mostrar error — ya está guardado localmente
+    }
+  }
 }
 
 // ─── Acciones por parada ──────────────────────────────────────
