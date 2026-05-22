@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="format-detection" content="telephone=no,email=no,address=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>Grabación Obras</title>
 <meta name="theme-color" content="#4f98a3">
 <meta name="description" content="Sistema de seguimiento de grabaciones de obras">
@@ -27,12 +29,12 @@
     <div class="modal-body">
       <div class="field">
         <label class="field-label-sm" for="admin-email">Email</label>
-        <input type="email" id="admin-email" class="field-input" placeholder="tu@email.com" autocomplete="email">
+        <input type="email" id="admin-email" class="field-input" placeholder="tu@email.com" autocomplete="off" data-1p-ignore data-lpignore="true" data-form-type="other">
       </div>
       <div class="field">
         <label class="field-label-sm" for="admin-password">Contraseña</label>
         <div style="position:relative">
-          <input type="password" id="admin-password" class="field-input" placeholder="••••••••" autocomplete="current-password" style="padding-right:2.5rem;width:100%">
+          <input type="password" id="admin-password" class="field-input" placeholder="••••••••" autocomplete="off" data-1p-ignore data-lpignore="true" data-form-type="other" readonly onfocus="this.removeAttribute('readonly')" style="padding-right:2.5rem;width:100%">
           <button class="icon-btn" onclick="toggleAdminPassVis()" aria-label="Mostrar contraseña" style="position:absolute;right:6px;top:50%;transform:translateY(-50%)">
             <svg id="admin-pass-eye" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
@@ -380,9 +382,24 @@
 
       <!-- VIEW: AL CORRIENTE -->
       <section class="view" id="view-corriente">
-        <div class="page-header"><h1 class="page-title">Al corriente</h1></div>
-        <p class="page-subtitle" style="margin-bottom:var(--space-6)">Locaciones grabadas recientemente y dentro de su frecuencia.</p>
+        <div class="page-header">
+          <h1 class="page-title">Al corriente</h1>
+        </div>
+        <p class="page-subtitle" style="margin-bottom:var(--space-5)">Locaciones grabadas recientemente y dentro de su frecuencia.</p>
+
+        <!-- KPIs específicos de la vista -->
+        <div id="corriente-kpis" class="corriente-kpis" style="display:none"></div>
+
+        <!-- Toolbar: búsqueda -->
+        <div id="corriente-toolbar" class="corriente-toolbar" style="display:none">
+          <div class="corriente-search-wrap">
+            <svg class="corriente-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" inputmode="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="corriente-q" id="corriente-search" class="corriente-search" placeholder="Buscar por nombre, responsable o dirección…" oninput="setCorrienteSearch(this.value)">
+          </div>
+        </div>
+
         <div id="corriente-grid" class="corriente-grid"></div>
+
         <div id="corriente-empty" class="empty-state" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="20 6 9 17 4 12"/></svg>
           <h3>Ninguna al corriente aún</h3><p>Agrega check-ins para ver qué locaciones están al día.</p>

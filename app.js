@@ -1577,16 +1577,158 @@ function formatWeekLabel(d) {
 }
 
 // ─── CORRIENTE ────────────────────────────────────────────────
+let corrienteSearch = '';
+
+function setCorrienteSearch(v) {
+  corrienteSearch = (v || '').toLowerCase();
+  renderCorriente();
+}
+
 function renderCorriente() {
-  const ok=locations.filter(l=>locStatus(l)==='ok');
-  const grid=document.getElementById('corriente-grid'),empty=document.getElementById('corriente-empty');
-  if(!ok.length){grid.innerHTML='';if(empty)empty.style.display='flex';return;}
-  if(empty)empty.style.display='none';
-  grid.innerHTML=ok.map(loc=>`<div class="corriente-card">
-    <div class="corriente-name">${esc(loc.name)}</div>
-    <div class="corriente-date">Último: ${fmtDate(loc.last_checkin)}</div>
-    <div style="font-size:var(--text-xs);color:var(--color-success)">✓ ${daysUntilDue(loc)}d restantes</div>
-  </div>`).join('');
+  const grid  = document.getElementById('corriente-grid');
+  const empty = document.getElementById('corriente-empty');
+  const kpiEl = document.getElementById('corriente-kpis');
+  const toolEl= document.getElementById('corriente-toolbar');
+  if (!grid) return;
+
+  // Base: solo las que están al corriente
+  let ok = locations.filter(l => locStatus(l) === 'ok');
+
+  // ── KPIs (siempre calculados sobre el total al corriente, no el filtrado) ──
+  if (kpiEl) {
+    if (!ok.length) {
+      kpiEl.innerHTML = '';
+      kpiEl.style.display = 'none';
+    } else {
+      const totalLoc = locations.length;
+      const pct      = totalLoc ? Math.round((ok.length / totalLoc) * 100) : 0;
+      const margenes = ok.map(l => daysUntilDue(l));
+      const avg      = Math.round(margenes.reduce((a,b)=>a+b,0) / margenes.length);
+      const next     = [...ok].sort((a,b) => daysUntilDue(a) - daysUntilDue(b))[0];
+      const fresh    = [...ok].sort((a,b) => daysUntilDue(b) - daysUntilDue(a))[0];
+
+      kpiEl.style.display = 'grid';
+      kpiEl.innerHTML = `
+        <div class="cor-kpi">
+          <div class="cor-kpi-label">Al corriente</div>
+          <div class="cor-kpi-value" style="color:var(--color-success)">${ok.length}</div>
+          <div class="cor-kpi-sub">${pct}% del total</div>
+        </div>
+        <div class="cor-kpi">
+          <div class="cor-kpi-label">Margen promedio</div>
+          <div class="cor-kpi-value">${avg}<span class="cor-kpi-unit">d</span></div>
+          <div class="cor-kpi-sub">hasta vencer</div>
+        </div>
+        <div class="cor-kpi">
+          <div class="cor-kpi-label">Próxima a vencer</div>
+          <div class="cor-kpi-value-sm">${esc(next.name)}</div>
+          <div class="cor-kpi-sub" style="color:var(--color-gold)">en ${daysUntilDue(next)}d</div>
+        </div>
+        <div class="cor-kpi">
+          <div class="cor-kpi-label">Más reciente</div>
+          <div class="cor-kpi-value-sm">${esc(fresh.name)}</div>
+          <div class="cor-kpi-sub">hace ${daysAgo(fresh.last_checkin)}d</div>
+        </div>
+      `;
+    }
+  }
+
+  // Mostrar/ocultar toolbar
+  if (toolEl) toolEl.style.display = ok.length ? 'flex' : 'none';
+
+  // Empty state
+  if (!ok.length) {
+    grid.innerHTML = '';
+    if (empty) empty.style.display = 'flex';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  // Filtrar por búsqueda
+  if (corrienteSearch) {
+    ok = ok.filter(l =>
+      l.name.toLowerCase().includes(corrienteSearch) ||
+      (l.responsable || '').toLowerCase().includes(corrienteSearch) ||
+      (l.address || '').toLowerCase().includes(corrienteSearch)
+    );
+  }
+
+  // Orden inteligente: las que vencen primero arriba
+  ok.sort((a,b) => daysUntilDue(a) - daysUntilDue(b));
+
+  if (!ok.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <h3>Sin resultados</h3><p>Ninguna locación al corriente coincide con "${esc(corrienteSearch)}".</p>
+    </div>`;
+    return;
+  }
+
+  // Render de tarjetas enriquecidas
+  grid.innerHTML = ok.map(loc => {
+    const due       = daysUntilDue(loc);
+    const elapsed   = daysAgo(loc.last_checkin) || 0;
+    const freq      = loc.freq_days || 15;
+    const pct       = Math.min(100, Math.max(0, Math.round((elapsed / freq) * 100)));
+    // Color y tono dinámico según margen
+    const tone      = due <= 5 ? 'warm' : due <= 10 ? 'mid' : 'fresh';
+    const initials  = (loc.responsable || '?').trim().split(/\s+/).map(s=>s[0]).slice(0,2).join('').toUpperCase() || '—';
+    const freqText  = freq===7?'Semanal':freq===15?'Quincenal':freq===30?'Mensual':`${freq}d`;
+
+    return `
+    <article class="cor-card cor-card-${tone}">
+      <header class="cor-card-head">
+        <div class="cor-card-title-wrap">
+          <h3 class="cor-card-title">${esc(loc.name)}</h3>
+          <div class="cor-card-freq">${freqText}</div>
+        </div>
+        <div class="cor-card-badge cor-badge-${tone}">
+          <span class="cor-badge-num">${due}</span>
+          <span class="cor-badge-unit">d</span>
+        </div>
+      </header>
+
+      ${loc.address || loc.responsable ? `
+      <div class="cor-card-meta">
+        ${loc.responsable ? `
+          <div class="cor-meta-row">
+            <span class="cor-avatar">${esc(initials)}</span>
+            <span class="cor-meta-txt">${esc(loc.responsable)}</span>
+          </div>` : ''}
+        ${loc.address ? `
+          <div class="cor-meta-row">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span class="cor-meta-txt cor-meta-truncate">${esc(loc.address)}</span>
+          </div>` : ''}
+      </div>` : ''}
+
+      <div class="cor-cycle">
+        <div class="cor-cycle-track">
+          <div class="cor-cycle-fill cor-cycle-${tone}" style="width:${pct}%"></div>
+        </div>
+        <div class="cor-cycle-info">
+          <span>Día ${elapsed} de ${freq}</span>
+          <span class="cor-cycle-date">Último: ${fmtDate(loc.last_checkin)}</span>
+        </div>
+      </div>
+
+      <footer class="cor-card-actions">
+        ${can('checkin') ? `
+          <button class="btn btn-primary btn-sm cor-btn-primary" onclick="openCheckinModal('${loc.id}')" title="Adelantar check-in">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Check-in
+          </button>` : ''}
+        ${loc.lat && loc.lng ? `
+          <a class="btn btn-secondary btn-sm" href="${mapsUrl(loc.lat,loc.lng)}" target="_blank" rel="noopener" title="Abrir en Maps">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+            Maps
+          </a>` : ''}
+        <button class="btn btn-ghost btn-sm cor-btn-detail" onclick="navigate('videos');setTimeout(()=>renderVideoDetail&&renderVideoDetail('${loc.id}'),100)" title="Ver detalle">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </button>
+      </footer>
+    </article>`;
+  }).join('');
 }
 
 // ═══════════════════════════════════════════════════════════════
