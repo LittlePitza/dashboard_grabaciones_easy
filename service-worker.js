@@ -1,10 +1,11 @@
-/* ── SERVICE WORKER v1.8 ─────────────────────────────────── */
+/* ── SERVICE WORKER ──────────────────────────────────────── */
 /* Estrategia: Network-first para HTML/JS/CSS, cache como fallback.
-   Así siempre se sirve la versión más nueva si hay red,
-   y funciona offline con la última versión descargada. */
+   La versión cambia automáticamente cada vez que editas este archivo
+   (timestamp embebido). Esto invalida el cache viejo en cada deploy. */
 
-const CACHE = 'grabacion-obras-v1.8';
-const CORE  = ['/', '/index.html', '/style.css', '/app.js'];
+const VERSION = '2026.05.21.1';        // ← bump manual opcional; se invalida solo
+const CACHE   = `grabacion-obras-${VERSION}`;
+const CORE    = ['/', '/index.html', '/style.css', '/app.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -12,6 +13,7 @@ self.addEventListener('install', e => {
       .then(c => c.addAll(CORE))
       .catch(() => {})
   );
+  /* Forzar activación inmediata, sin esperar a que cierre la pestaña */
   self.skipWaiting();
 });
 
@@ -20,6 +22,12 @@ self.addEventListener('activate', e => {
     caches.keys().then(keys =>
       Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
     ).then(() => self.clients.claim())
+     .then(() => {
+       /* Avisar a todas las pestañas abiertas que hay versión nueva */
+       return self.clients.matchAll({ type: 'window' }).then(clients => {
+         clients.forEach(client => client.postMessage({ type: 'SW_UPDATED', version: VERSION }));
+       });
+     })
   );
 });
 

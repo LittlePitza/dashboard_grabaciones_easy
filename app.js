@@ -466,22 +466,24 @@ async function initApp() {
       .then(reg => {
         // Revisar actualizaciones cada vez que se carga la app
         reg.update();
+        // Revisar cada 60s si la pestaña sigue abierta
+        setInterval(() => reg.update().catch(() => {}), 60000);
         // Cuando hay una nueva versión instalada y esperando
         reg.addEventListener('updatefound', () => {
           const newWorker = reg.installing;
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              // Hay update listo — mostrar banner
-              const banner = document.getElementById('update-banner');
-              if (banner) banner.style.display = 'flex';
+              // Hay update listo — activar automáticamente sin pedir confirmación
               window.__newWorker = newWorker;
+              showToast('Actualizando a nueva versión…', 'info');
+              setTimeout(() => newWorker.postMessage({ type: 'SKIP_WAITING' }), 400);
             }
           });
         });
       })
       .catch(() => {});
 
-    // Si el SW tomó control (después de actualizar), recargar
+    // Si el SW tomó control (después de actualizar), recargar UNA vez
     let refreshing = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (!refreshing) { refreshing = true; location.reload(); }
