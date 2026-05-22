@@ -533,12 +533,14 @@ async function refreshAll() {
 
 function renderAll() {
   renderKPIs();
+  renderDashboard();
   renderLocaciones();
   renderVencer();
   renderRegistro();
   renderRutaAll();
   renderCorriente();
   renderVideosGrid();
+  renderMapa();
   updateBadges();
   document.getElementById('sidebar-loc-count').textContent = locations.length;
 }
@@ -2406,6 +2408,8 @@ function navigate(viewId) {
   document.getElementById('view-'+viewId)?.classList.add('active');
   document.querySelector(`[data-view="${viewId}"]`)?.classList.add('active');
   if (viewId==='videos' && !currentVideoLocId) renderVideosGrid();
+  if (viewId==='mapa') { setTimeout(() => { if (window._mapaInstance) { window._mapaInstance.invalidateSize(); fitMapToAll(); } else { initMapa(); } }, 50); }
+  if (viewId==='dashboard') renderDashboard();
   if (window.innerWidth<=768) {
     document.getElementById('sidebar').classList.remove('open');
     document.getElementById('sidebar-overlay').classList.remove('open');
@@ -2477,4 +2481,396 @@ function showToast(msg,type='info'){
   t.innerHTML=(icons[type]||icons.info)+`<span>${esc(msg)}</span>`;
   document.getElementById('toast-container').appendChild(t);
   setTimeout(()=>{t.classList.add('exit');setTimeout(()=>t.remove(),250);},3500);
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════════
+
+function renderDashboard() {
+  const greetEl = document.getElementById('dash-greeting');
+  const headEl  = document.getElementById('dash-headline');
+  const subEl   = document.getElementById('dash-subline');
+  const dateEl  = document.getElementById('dash-date');
+  if (!greetEl) return;
+
+  // Saludo + fecha
+  const now = new Date();
+  const hr  = now.getHours();
+  const saludo = hr < 12 ? 'Buenos días' : hr < 19 ? 'Buenas tardes' : 'Buenas noches';
+  greetEl.textContent = saludo;
+
+  const dias  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  dateEl.textContent = `${dias[now.getDay()]} ${now.getDate()} ${meses[now.getMonth()]}`;
+
+  // Métricas
+  const total     = locations.length;
+  const vencidas  = locations.filter(l => locStatus(l) === 'overdue').length;
+  const pronto    = locations.filter(l => locStatus(l) === 'soon').length;
+  const ok        = locations.filter(l => locStatus(l) === 'ok').length;
+  const nunca     = locations.filter(l => locStatus(l) === 'never').length;
+  const urgentes  = vencidas + pronto;
+  const pct       = total ? Math.round((ok / total) * 100) : 0;
+
+  // Headline dinámico
+  if (vencidas > 0) {
+    headEl.textContent = `Tienes ${vencidas} ${vencidas===1?'locación vencida':'locaciones vencidas'}`;
+    subEl.textContent  = `${pronto>0?pronto+' por vencer · ':''}${ok} al corriente de ${total} totales`;
+  } else if (pronto > 0) {
+    headEl.textContent = `${pronto} ${pronto===1?'locación':'locaciones'} por vencer pronto`;
+    subEl.textContent  = `Todo bajo control: ${ok} al corriente de ${total} totales`;
+  } else if (total > 0) {
+    headEl.textContent = `Todo al día`;
+    subEl.textContent  = `Las ${total} locaciones están dentro de su frecuencia.`;
+  } else {
+    headEl.textContent = `Bienvenido`;
+    subEl.textContent  = `Agrega tu primera locación para empezar.`;
+  }
+
+  // KPIs
+  const kpiGrid = document.getElementById('dash-kpi-grid');
+  if (kpiGrid) {
+    kpiGrid.innerHTML = `
+      <div class="dash-kpi">
+        <div class="dash-kpi-top">
+          <span class="dash-kpi-label">Total locaciones</span>
+          <span class="dash-kpi-icon dash-kpi-icon-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          </span>
+        </div>
+        <div class="dash-kpi-value">${total}</div>
+        <div class="dash-kpi-sub">${nunca>0?nunca+' sin grabar':'todas registradas'}</div>
+      </div>
+      <div class="dash-kpi">
+        <div class="dash-kpi-top">
+          <span class="dash-kpi-label">Al corriente</span>
+          <span class="dash-kpi-icon dash-kpi-icon-success">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          </span>
+        </div>
+        <div class="dash-kpi-value" style="color:var(--color-success)">${ok}</div>
+        <div class="dash-kpi-sub">${pct}% del total</div>
+      </div>
+      <div class="dash-kpi">
+        <div class="dash-kpi-top">
+          <span class="dash-kpi-label">Por vencer</span>
+          <span class="dash-kpi-icon dash-kpi-icon-warn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </span>
+        </div>
+        <div class="dash-kpi-value" style="color:var(--color-gold)">${pronto}</div>
+        <div class="dash-kpi-sub">próx. 3 días</div>
+      </div>
+      <div class="dash-kpi">
+        <div class="dash-kpi-top">
+          <span class="dash-kpi-label">Vencidas</span>
+          <span class="dash-kpi-icon dash-kpi-icon-error">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </span>
+        </div>
+        <div class="dash-kpi-value" style="color:var(--color-error)">${vencidas}</div>
+        <div class="dash-kpi-sub">requieren visita</div>
+      </div>
+    `;
+  }
+
+  renderDashUrgent(urgentes);
+  renderDashActivity();
+  renderDashDist(ok, pronto, vencidas, nunca, total);
+  renderDashUpcoming();
+}
+
+function renderDashUrgent(urgentes) {
+  const el = document.getElementById('dash-urgent-list');
+  const cnt= document.getElementById('dash-urgent-count');
+  if (!el) return;
+
+  const overdue = locations.filter(l => locStatus(l) === 'overdue').map(l => ({...l, _prio: 1, _due: daysUntilDue(l)}));
+  const soon    = locations.filter(l => locStatus(l) === 'soon').map(l => ({...l, _prio: 2, _due: daysUntilDue(l)}));
+  const never   = locations.filter(l => locStatus(l) === 'never').map(l => ({...l, _prio: 3, _due: null}));
+  const all = [...overdue, ...soon, ...never].sort((a,b) => a._prio - b._prio || (a._due ?? 999) - (b._due ?? 999));
+
+  if (cnt) cnt.textContent = all.length;
+
+  if (!all.length) {
+    el.innerHTML = `<div class="dash-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="20 6 9 17 4 12"/></svg>
+      <div>Sin acciones urgentes ahora</div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = all.slice(0, 8).map(loc => {
+    const st = locStatus(loc);
+    const cls = st === 'overdue' ? '' : st === 'soon' ? 'warn' : 'never';
+    let sub;
+    if (st === 'overdue')      sub = `Venció hace ${Math.abs(loc._due)}d · ${loc.responsable || 'Sin responsable'}`;
+    else if (st === 'soon')    sub = `Vence en ${loc._due}d · ${loc.responsable || 'Sin responsable'}`;
+    else                       sub = `Sin grabar aún · ${loc.responsable || 'Sin responsable'}`;
+    return `
+    <div class="dash-urgent-item ${cls}">
+      <div class="dash-urgent-main">
+        <div class="dash-urgent-name">${esc(loc.name)}</div>
+        <div class="dash-urgent-sub">${esc(sub)}</div>
+      </div>
+      <div class="dash-urgent-actions">
+        ${can('checkin') ? `<button class="btn btn-primary btn-sm" onclick="openCheckinModal('${loc.id}')" title="Check-in">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>` : ''}
+        ${loc.lat && loc.lng ? `<a class="btn btn-ghost btn-sm" href="${mapsUrl(loc.lat,loc.lng)}" target="_blank" rel="noopener" title="Maps">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+        </a>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderDashActivity() {
+  const el = document.getElementById('dash-activity-list');
+  if (!el) return;
+  const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const cutoff = sevenDaysAgo.toISOString().slice(0,10);
+  const recent = [...checkins]
+    .filter(c => c.date >= cutoff)
+    .sort((a,b) => b.date.localeCompare(a.date) || (b.created_at||'').localeCompare(a.created_at||''))
+    .slice(0, 8);
+
+  if (!recent.length) {
+    el.innerHTML = `<div class="dash-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <div>Sin actividad en los últimos 7 días</div>
+    </div>`;
+    return;
+  }
+
+  const estadoLbl = { grabado: 'grabó', en_edicion: 'pasó a edición', editado: 'editó', publicado: 'publicó' };
+  el.innerHTML = recent.map(ci => {
+    const locName = getLocName(ci.location_id);
+    const verbo = estadoLbl[ci.estado] || ci.estado;
+    return `
+    <div class="dash-activity-item">
+      <div class="dash-activity-dot ${ci.estado}"></div>
+      <div class="dash-activity-main">
+        <div class="dash-activity-text">Se <strong>${esc(verbo)}</strong> material de <strong>${esc(locName)}</strong></div>
+        <div class="dash-activity-meta">${fmtDate(ci.date)}${ci.notes?' · '+esc((ci.notes||'').slice(0,40))+(ci.notes.length>40?'…':''):''}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderDashDist(ok, soon, overdue, never, total) {
+  const el = document.getElementById('dash-dist');
+  if (!el) return;
+  if (!total) {
+    el.innerHTML = `<div class="dash-empty"><div>Sin datos</div></div>`;
+    return;
+  }
+  const rows = [
+    { label: 'Al corriente', count: ok,       color: 'var(--color-success)' },
+    { label: 'Por vencer',   count: soon,     color: 'var(--color-gold)' },
+    { label: 'Vencidas',     count: overdue,  color: 'var(--color-error)' },
+    { label: 'Sin grabar',   count: never,    color: 'var(--color-text-faint)' },
+  ];
+  el.innerHTML = rows.map(r => {
+    const pct = total ? Math.round((r.count / total) * 100) : 0;
+    return `
+    <div class="dash-dist-row">
+      <div class="dash-dist-top">
+        <span class="dash-dist-label"><span class="dot" style="background:${r.color}"></span>${r.label}</span>
+        <span class="dash-dist-count">${r.count} · ${pct}%</span>
+      </div>
+      <div class="dash-dist-track">
+        <div class="dash-dist-fill" style="width:${pct}%;background:${r.color}"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderDashUpcoming() {
+  const el = document.getElementById('dash-upcoming-list');
+  if (!el) return;
+  const MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const todayD = new Date(today() + 'T00:00:00').getTime();
+  const limit  = todayD + 7 * 86400000;
+  const upcoming = locations
+    .filter(l => l.last_checkin)
+    .map(l => {
+      const d = new Date(l.last_checkin + 'T00:00:00');
+      d.setDate(d.getDate() + (l.freq_days || 15));
+      return {...l, _next: d.getTime(), _nextDate: d};
+    })
+    .filter(l => l._next >= todayD && l._next <= limit)
+    .sort((a,b) => a._next - b._next)
+    .slice(0, 8);
+
+  if (!upcoming.length) {
+    el.innerHTML = `<div class="dash-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <div>Nada agendado los próximos 7 días</div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = upcoming.map(loc => {
+    const d = loc._nextDate;
+    const diffDays = Math.round((loc._next - todayD) / 86400000);
+    const badgeCls = diffDays === 0 ? 'today' : diffDays <= 3 ? 'soon' : '';
+    const badgeTxt = diffDays === 0 ? 'Hoy' : diffDays === 1 ? 'Mañana' : `${diffDays}d`;
+    return `
+    <div class="dash-upcoming-item" onclick="navigate('vencer')">
+      <div class="dash-upcoming-day">
+        <span class="dash-upcoming-day-num">${d.getDate()}</span>
+        <span class="dash-upcoming-day-mon">${MONTHS[d.getMonth()]}</span>
+      </div>
+      <div class="dash-upcoming-main">
+        <div class="dash-upcoming-name">${esc(loc.name)}</div>
+        <div class="dash-upcoming-sub">${loc.responsable ? esc(loc.responsable) + ' · ' : ''}cada ${loc.freq_days}d</div>
+      </div>
+      <span class="dash-upcoming-badge ${badgeCls}">${badgeTxt}</span>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAPA
+// ═══════════════════════════════════════════════════════════════
+
+let _mapaFilter = 'todas';
+window._mapaInstance = null;
+window._mapaMarkers  = [];
+
+function setMapaFilter(f, btn) {
+  _mapaFilter = f;
+  document.querySelectorAll('[data-mfilter]').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderMapa();
+}
+
+function _makePinIcon(status) {
+  if (typeof L === 'undefined') return null;
+  const color = status === 'ok'      ? 'var(--color-success)'
+              : status === 'soon'    ? 'var(--color-gold)'
+              : status === 'overdue' ? 'var(--color-error)'
+              :                        'var(--color-text-faint)';
+  // SVG pin como divIcon — usa color CSS para auto-tematizar
+  const html = `<div class="mapa-pin mapa-pin-${status}">
+    <svg width="28" height="36" viewBox="0 0 28 36" xmlns="http://www.w3.org/2000/svg">
+      <path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 22 14 22s14-11.5 14-22C28 6.27 21.73 0 14 0z" fill="${color}" stroke="white" stroke-width="2"/>
+      <circle cx="14" cy="14" r="5" fill="white"/>
+    </svg>
+  </div>`;
+  return L.divIcon({
+    html,
+    className: 'mapa-pin-wrap',
+    iconSize: [28, 36],
+    iconAnchor: [14, 36],
+    popupAnchor: [0, -32],
+  });
+}
+
+function initMapa() {
+  if (typeof L === 'undefined') {
+    // Leaflet aún no cargado — reintentar en 250ms
+    setTimeout(initMapa, 250);
+    return;
+  }
+  const canvas = document.getElementById('mapa-canvas');
+  if (!canvas || window._mapaInstance) return;
+
+  // Centrado por defecto: Zacatepec, Morelos (puede ajustarse luego con fitMapToAll)
+  window._mapaInstance = L.map(canvas, { zoomControl: true, attributionControl: true })
+    .setView([18.65, -99.18], 11);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(window._mapaInstance);
+
+  renderMapa();
+  setTimeout(() => { window._mapaInstance.invalidateSize(); fitMapToAll(); }, 100);
+}
+
+function renderMapa() {
+  const empty = document.getElementById('mapa-empty');
+  const meta  = document.getElementById('mapa-meta');
+  if (typeof L === 'undefined' || !window._mapaInstance) {
+    // Si el view del mapa está activo y Leaflet aún no carga, intentar inicializar
+    if (document.getElementById('view-mapa')?.classList.contains('active')) {
+      initMapa();
+    }
+    return;
+  }
+
+  // Limpiar markers viejos
+  window._mapaMarkers.forEach(m => window._mapaInstance.removeLayer(m));
+  window._mapaMarkers = [];
+
+  // Filtrar locaciones con coords
+  let withCoords = locations.filter(l => l.lat && l.lng);
+  const totalCoords = withCoords.length;
+
+  if (_mapaFilter !== 'todas') {
+    withCoords = withCoords.filter(l => locStatus(l) === _mapaFilter);
+  }
+
+  // Mostrar/ocultar empty
+  if (empty) empty.style.display = totalCoords === 0 ? 'flex' : 'none';
+
+  // Meta
+  if (meta) {
+    if (totalCoords === 0) {
+      meta.textContent = '';
+    } else if (_mapaFilter === 'todas') {
+      meta.textContent = `${totalCoords} ${totalCoords===1?'ubicación':'ubicaciones'}`;
+    } else {
+      meta.textContent = `${withCoords.length} de ${totalCoords}`;
+    }
+  }
+
+  // Añadir markers
+  withCoords.forEach(loc => {
+    const st  = locStatus(loc);
+    const due = daysUntilDue(loc);
+    let statusLabel;
+    if (st === 'never')        statusLabel = 'Sin grabar';
+    else if (st === 'overdue') statusLabel = `Venció hace ${Math.abs(due)}d`;
+    else if (st === 'soon')    statusLabel = `Vence en ${due}d`;
+    else                       statusLabel = `Al corriente · ${due}d restantes`;
+
+    const color = st === 'ok'      ? 'var(--color-success)'
+                : st === 'soon'    ? 'var(--color-gold)'
+                : st === 'overdue' ? 'var(--color-error)'
+                :                    'var(--color-text-faint)';
+
+    const popupHtml = `
+      <div class="mapa-popup">
+        <h3 class="mapa-popup-title">${esc(loc.name)}</h3>
+        <div class="mapa-popup-status" style="color:${color}">
+          <span class="dot" style="background:${color}"></span>${statusLabel}
+        </div>
+        <div class="mapa-popup-meta">
+          ${loc.responsable ? `<span>👤 ${esc(loc.responsable)}</span>` : ''}
+          ${loc.address ? `<span>📍 ${esc(loc.address)}</span>` : ''}
+          <span>⏱ cada ${loc.freq_days}d${loc.last_checkin?' · último '+fmtDate(loc.last_checkin):''}</span>
+        </div>
+        <div class="mapa-popup-actions">
+          ${can('checkin') ? `<button class="btn btn-primary btn-sm" onclick="openCheckinModal('${loc.id}')">Check-in</button>` : ''}
+          <a class="btn btn-secondary btn-sm" href="${mapsUrl(loc.lat,loc.lng)}" target="_blank" rel="noopener">Abrir Maps</a>
+        </div>
+      </div>
+    `;
+
+    const marker = L.marker([loc.lat, loc.lng], { icon: _makePinIcon(st) })
+      .bindPopup(popupHtml, { closeButton: true, autoPan: true });
+    marker.addTo(window._mapaInstance);
+    window._mapaMarkers.push(marker);
+  });
+}
+
+function fitMapToAll() {
+  if (!window._mapaInstance || !window._mapaMarkers.length) return;
+  const group = L.featureGroup(window._mapaMarkers);
+  window._mapaInstance.fitBounds(group.getBounds().pad(0.2), { maxZoom: 14 });
 }

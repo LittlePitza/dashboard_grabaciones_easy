@@ -3,7 +3,7 @@
    La versión cambia automáticamente cada vez que editas este archivo
    (timestamp embebido). Esto invalida el cache viejo en cada deploy. */
 
-const VERSION = '2026.05.21.1';        // ← bump manual opcional; se invalida solo
+const VERSION = '2026.05.21.2';        // ← bump manual opcional; se invalida solo
 const CACHE   = `grabacion-obras-${VERSION}`;
 const CORE    = ['/', '/index.html', '/style.css', '/app.js'];
 

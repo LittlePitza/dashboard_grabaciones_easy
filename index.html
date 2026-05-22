@@ -13,6 +13,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<!-- Leaflet (mapa) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -100,9 +103,17 @@
       </div>
       <div class="sidebar-section">
         <span class="sidebar-label">Principal</span>
-        <button class="nav-item active" data-view="locaciones" onclick="navigate('locaciones')">
+        <button class="nav-item active" data-view="dashboard" onclick="navigate('dashboard')">
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span>
+          <span class="nav-label">Dashboard</span>
+        </button>
+        <button class="nav-item" data-view="locaciones" onclick="navigate('locaciones')">
           <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span>
           <span class="nav-label">Locaciones</span>
+        </button>
+        <button class="nav-item" data-view="mapa" onclick="navigate('mapa')">
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg></span>
+          <span class="nav-label">Mapa</span>
         </button>
         <button class="nav-item" data-view="vencer" onclick="navigate('vencer')">
           <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
@@ -140,14 +151,109 @@
         <!-- Bloque de modo (lector / admin) — se rellena desde JS -->
         <div id="sidebar-mode-block" class="sidebar-mode-block"></div>
         <div class="sidebar-stat"><span>Locaciones</span><span class="sidebar-stat-val" id="sidebar-loc-count">—</span></div>
-        <div class="sidebar-stat"><span>Versión</span><span class="sidebar-stat-val">1.8</span></div>
+        <div class="sidebar-stat"><span>Versión</span><span class="sidebar-stat-val">1.9</span></div>
       </div>
     </nav>
 
     <main id="content">
 
+      <!-- VIEW: DASHBOARD -->
+      <section class="view active" id="view-dashboard">
+        <div class="dash-hero">
+          <div class="dash-hero-text">
+            <div class="dash-hero-kicker" id="dash-greeting">Hola</div>
+            <h1 class="dash-hero-title" id="dash-headline">Resumen del proyecto</h1>
+            <p class="dash-hero-sub" id="dash-subline">Cargando…</p>
+          </div>
+          <div class="dash-hero-date" id="dash-date">—</div>
+        </div>
+
+        <!-- KPIs principales -->
+        <div class="dash-kpi-grid" id="dash-kpi-grid"></div>
+
+        <!-- Grid 2 columnas: Acciones urgentes + Actividad reciente -->
+        <div class="dash-2col">
+          <div class="dash-panel">
+            <div class="dash-panel-head">
+              <h2 class="dash-panel-title">Acciones urgentes</h2>
+              <span class="dash-panel-meta" id="dash-urgent-count">0</span>
+            </div>
+            <div class="dash-urgent-list" id="dash-urgent-list"></div>
+          </div>
+          <div class="dash-panel">
+            <div class="dash-panel-head">
+              <h2 class="dash-panel-title">Actividad reciente</h2>
+              <span class="dash-panel-meta">últimos 7d</span>
+            </div>
+            <div class="dash-activity-list" id="dash-activity-list"></div>
+          </div>
+        </div>
+
+        <!-- Bottom: distribución por estado + próximas visitas -->
+        <div class="dash-2col">
+          <div class="dash-panel">
+            <div class="dash-panel-head">
+              <h2 class="dash-panel-title">Distribución por estado</h2>
+            </div>
+            <div class="dash-dist" id="dash-dist"></div>
+          </div>
+          <div class="dash-panel">
+            <div class="dash-panel-head">
+              <h2 class="dash-panel-title">Próximas visitas</h2>
+              <span class="dash-panel-meta">7 días</span>
+            </div>
+            <div class="dash-upcoming-list" id="dash-upcoming-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW: MAPA -->
+      <section class="view" id="view-mapa">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Mapa</h1>
+            <p class="page-subtitle">Vista geográfica de todas las locaciones con ubicación registrada.</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-secondary btn-sm" onclick="fitMapToAll()" title="Centrar el mapa">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V3h4M21 7V3h-4M3 17v4h4M21 17v4h-4"/></svg>
+              Centrar
+            </button>
+          </div>
+        </div>
+
+        <div class="mapa-toolbar">
+          <div class="mapa-filters" id="mapa-filters">
+            <button class="mapa-filter active" data-mfilter="todas" onclick="setMapaFilter('todas',this)">
+              <span class="mapa-filter-dot" style="background:var(--color-text-muted)"></span>Todas
+            </button>
+            <button class="mapa-filter" data-mfilter="ok" onclick="setMapaFilter('ok',this)">
+              <span class="mapa-filter-dot" style="background:var(--color-success)"></span>Al corriente
+            </button>
+            <button class="mapa-filter" data-mfilter="soon" onclick="setMapaFilter('soon',this)">
+              <span class="mapa-filter-dot" style="background:var(--color-gold)"></span>Por vencer
+            </button>
+            <button class="mapa-filter" data-mfilter="overdue" onclick="setMapaFilter('overdue',this)">
+              <span class="mapa-filter-dot" style="background:var(--color-error)"></span>Vencidas
+            </button>
+            <button class="mapa-filter" data-mfilter="never" onclick="setMapaFilter('never',this)">
+              <span class="mapa-filter-dot" style="background:var(--color-text-faint)"></span>Sin grabar
+            </button>
+          </div>
+          <div class="mapa-meta" id="mapa-meta">—</div>
+        </div>
+
+        <div id="mapa-canvas" class="mapa-canvas"></div>
+
+        <div id="mapa-empty" class="empty-state" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          <h3>Sin ubicaciones</h3>
+          <p>Ninguna locación tiene coordenadas registradas. Edita una locación y captura su ubicación GPS.</p>
+        </div>
+      </section>
+
       <!-- VIEW: LOCACIONES -->
-      <section class="view active" id="view-locaciones">
+      <section class="view" id="view-locaciones">
         <div class="page-header">
           <h1 class="page-title">Locaciones</h1>
           <div class="page-actions">
