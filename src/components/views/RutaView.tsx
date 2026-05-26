@@ -441,53 +441,150 @@ function NoteField({ stopId, value, onSave }: { stopId: string; value: string; o
 
 // ─── TAB: SUGERIDA ───────────────────────────────────────────
 function TabSugerida({ locations, onStart, onAddToCrear, hasActive }: any) {
+  const [sel, setSel] = useState<string[]>([]);
   const suggested = [...(locations as Location[])].sort((a, b) => buildScore(b) - buildScore(a));
 
+  const toggle = (id: string) =>
+    setSel(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
+
+  const selectGroup = (ids: string[]) =>
+    setSel(s => {
+      const allIn = ids.every(id => s.includes(id));
+      return allIn ? s.filter(x => !ids.includes(x)) : [...new Set([...s, ...ids])];
+    });
+
+  const groups = [
+    { key:'overdue', label:'Vencidas',       color:'var(--color-error)',   items: suggested.filter((l: Location) => locStatus(l) === 'overdue') },
+    { key:'soon',    label:'Por vencer',      color:'var(--color-gold)',    items: suggested.filter((l: Location) => locStatus(l) === 'soon') },
+    { key:'never',   label:'Sin grabar',      color:'var(--color-text-faint)', items: suggested.filter((l: Location) => locStatus(l) === 'never') },
+    { key:'ok',      label:'Al corriente',    color:'var(--color-success)', items: suggested.filter((l: Location) => locStatus(l) === 'ok') },
+  ].filter(g => g.items.length > 0);
+
+  const handleStart = () => {
+    const ids = sel.length > 0 ? sel : suggested.slice(0, 5).map((l: Location) => l.id);
+    onStart(ids);
+    setSel([]);
+  };
+
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
-        <div>
-          <div style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:'var(--text-xs)', fontWeight:700, color:'var(--color-primary)', background:'var(--color-primary-highlight)', padding:'3px 10px', borderRadius:99, marginBottom:4 }}>
+    <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+      {/* Header con acciones */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap',
+        background:'var(--color-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--radius-xl)',
+        padding:'14px 18px', boxShadow:'var(--shadow-sm)' }}>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:'var(--text-xs)', fontWeight:700,
+            color:'var(--color-primary)', background:'var(--color-primary-highlight)', padding:'2px 10px', borderRadius:99, marginBottom:4 }}>
             ⚡ Generada automáticamente
           </div>
-          <p style={{ fontSize:'var(--text-sm)', color:'var(--color-text-muted)', margin:0 }}>Las obras más urgentes ordenadas por prioridad.</p>
+          <p style={{ fontSize:'var(--text-sm)', color:'var(--color-text-muted)', margin:0 }}>
+            {sel.length > 0
+              ? <><strong style={{ color:'var(--color-text)' }}>{sel.length} seleccionada{sel.length > 1 ? 's' : ''}</strong> · haz clic en obras para seleccionar o deseleccionar</>
+              : 'Selecciona obras o inicia directamente con el top 5 más urgente.'}
+          </p>
         </div>
-        <div style={{ display:'flex', gap:8 }}>
+        <div style={{ display:'flex', gap:8, flexShrink:0 }}>
+          {sel.length > 0 && (
+            <button className="btn btn-ghost btn-sm" onClick={() => setSel([])}>Limpiar</button>
+          )}
           <button className="btn btn-secondary btn-sm" onClick={() => {
-            const ids = suggested.slice(0,10).map((l: Location) => l.id);
+            const ids = (sel.length > 0 ? sel : suggested.slice(0,10).map((l: Location) => l.id));
             const text = ids.map((id: string, i: number) => `${i+1}. ${(locations as Location[]).find((l: Location) => l.id === id)?.name}`).join('\n');
             navigator.share ? navigator.share({ title:'Mi ruta', text }) : navigator.clipboard.writeText(text);
           }}>Exportar</button>
-          <button className="btn btn-primary btn-sm" disabled={hasActive} onClick={() => onStart(suggested.slice(0,5).map((l: Location) => l.id))}>
-            Iniciar top 5
+          <button className="btn btn-primary btn-sm" disabled={hasActive} onClick={handleStart}>
+            {sel.length > 0 ? `Iniciar ${sel.length} seleccionadas` : 'Iniciar top 5'}
           </button>
         </div>
       </div>
 
-      {suggested.map((loc: Location, i: number) => {
-        const st = locStatus(loc);
-        const due = daysUntilDue(loc);
-        const rankCls = i < 3 ? 'var(--color-error)' : i < 6 ? 'var(--color-gold)' : 'var(--color-primary)';
-        const urgText = st === 'overdue' ? `Vencida hace ${Math.abs(due!)}d`
-                      : st === 'soon'   ? `Vence en ${due}d`
-                      : st === 'never'  ? 'Primera visita'
-                      : `${due}d restantes`;
-        return (
-          <div key={loc.id} style={{ display:'flex', alignItems:'center', gap:12, background:'var(--color-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--radius-lg)', padding:'12px 16px', boxShadow:'var(--shadow-sm)' }}>
-            <div style={{ width:32, height:32, borderRadius:'var(--radius-md)', background:`color-mix(in srgb,${rankCls} 12%,transparent)`, color:rankCls, display:'flex', alignItems:'center', justifyContent:'center', fontWeight:800, fontSize:'var(--text-sm)', fontFamily:'var(--font-mono)', flexShrink:0 }}>{i+1}</div>
-            <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontWeight:600, fontSize:'var(--text-sm)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{loc.name}</div>
-              <div style={{ fontSize:'var(--text-xs)', color:'var(--color-text-muted)', marginTop:2 }}>
-                <span style={{ color: st === 'overdue' ? 'var(--color-error)' : st === 'soon' ? 'var(--color-gold)' : 'var(--color-text-muted)', fontWeight:600 }}>{urgText}</span>
-                {' · '}Cada {loc.freq_days}d · {fmtDate(loc.last_checkin)}
-              </div>
-            </div>
-            <div style={{ display:'flex', gap:6, flexShrink:0 }}>
-              <button className="btn btn-ghost btn-sm" onClick={() => onAddToCrear(loc.id)}>+ Crear</button>
-            </div>
+      {/* Grupos por urgencia */}
+      {groups.map(group => (
+        <div key={group.key}>
+          {/* Header del grupo */}
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+            <div style={{ width:8, height:8, borderRadius:'50%', background:group.color, flexShrink:0 }} />
+            <span style={{ fontSize:'var(--text-xs)', fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', color:group.color }}>
+              {group.label}
+            </span>
+            <span style={{ fontSize:'var(--text-xs)', color:'var(--color-text-faint)', fontFamily:'var(--font-mono)' }}>
+              {group.items.length}
+            </span>
+            <div style={{ flex:1, height:1, background:'var(--color-divider)' }} />
+            <button
+              style={{ fontSize:10, fontWeight:700, color:group.color, background:`color-mix(in srgb,${group.color} 10%,transparent)`,
+                border:`1px solid color-mix(in srgb,${group.color} 25%,transparent)`, borderRadius:99,
+                padding:'2px 10px', cursor:'pointer', fontFamily:'inherit' }}
+              onClick={() => selectGroup(group.items.map((l: Location) => l.id))}
+            >
+              {group.items.every((l: Location) => sel.includes(l.id)) ? 'Deseleccionar grupo' : 'Seleccionar grupo'}
+            </button>
           </div>
-        );
-      })}
+
+          {/* Items del grupo */}
+          <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+            {group.items.map((loc: Location, i: number) => {
+              const due      = daysUntilDue(loc);
+              const st       = locStatus(loc);
+              const isSelected = sel.includes(loc.id);
+              const globalIdx  = suggested.indexOf(loc);
+              const urgText  = st === 'overdue' ? `Vencida hace ${Math.abs(due!)}d`
+                             : st === 'soon'    ? `Vence en ${due}d`
+                             : st === 'never'   ? 'Primera visita'
+                             : `${due}d restantes`;
+              return (
+                <div key={loc.id}
+                  onClick={() => toggle(loc.id)}
+                  style={{ display:'flex', alignItems:'center', gap:12,
+                    background: isSelected ? `color-mix(in srgb,${group.color} 8%,var(--color-surface))` : 'var(--color-surface)',
+                    border: `1px solid ${isSelected ? group.color : 'var(--color-border)'}`,
+                    borderRadius:'var(--radius-lg)', padding:'10px 14px',
+                    cursor:'pointer', transition:'all .15s',
+                    boxShadow: isSelected ? `0 0 0 1px ${group.color}33` : 'var(--shadow-sm)' }}>
+                  {/* Checkbox */}
+                  <div style={{ width:18, height:18, borderRadius:4, border:`2px solid ${isSelected ? group.color : 'var(--color-border)'}`,
+                    background: isSelected ? group.color : 'transparent',
+                    display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all .15s' }}>
+                    {isSelected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3}><polyline points="20 6 9 17 4 12"/></svg>}
+                  </div>
+                  {/* Rank */}
+                  <span style={{ fontSize:10, fontWeight:800, fontFamily:'var(--font-mono)', color:'var(--color-text-faint)', minWidth:16 }}>
+                    #{globalIdx + 1}
+                  </span>
+                  {/* Info */}
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:600, fontSize:'var(--text-sm)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                      {loc.name}
+                    </div>
+                    <div style={{ fontSize:'var(--text-xs)', color:'var(--color-text-muted)', marginTop:1 }}>
+                      <span style={{ color:group.color, fontWeight:600 }}>{urgText}</span>
+                      {' · '}Cada {loc.freq_days}d
+                      {loc.last_checkin ? ` · Últ. ${fmtDate(loc.last_checkin)}` : ''}
+                      {loc.responsable ? ` · ${loc.responsable}` : ''}
+                    </div>
+                  </div>
+                  {/* Acción rápida Maps */}
+                  {loc.lat && loc.lng && (
+                    <a href={mapsUrl(loc.lat, loc.lng)} target="_blank" rel="noopener noreferrer"
+                      onClick={e => e.stopPropagation()}
+                      style={{ color:'var(--color-text-faint)', flexShrink:0, display:'flex', alignItems:'center' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+                    </a>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
+      {suggested.length === 0 && (
+        <div className="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}><polyline points="20 6 9 17 4 12"/></svg>
+          <h3>Todo al día</h3>
+          <p>No hay obras urgentes en este momento.</p>
+        </div>
+      )}
     </div>
   );
 }

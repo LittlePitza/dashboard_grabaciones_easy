@@ -24,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es" data-theme="dark" suppressHydrationWarning>
       <head>
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossOrigin="" />
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossOrigin="" async></script>
       </head>
       <body style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}>
         <AppShell>{children}</AppShell>
