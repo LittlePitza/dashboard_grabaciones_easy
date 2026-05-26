@@ -3,7 +3,7 @@
 import { useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAppStore } from '@/lib/store';
-import type { Location, Checkin } from '@/types';
+import type { Location, Checkin, EstadoHistoryEntry } from '@/types';
 
 const STORAGE_BUCKET = 'checkin-fotos';
 
@@ -20,7 +20,7 @@ export function useData() {
     try {
       const [locRes, ciRes] = await Promise.all([
         sb.from('locations').select('*').order('name'),
-        sb.from('checkins').select('*').order('date', { ascending: false }),
+        sb.from('checkin_videos').select('*').order('date', { ascending: false }),
       ]);
       if (locRes.error) throw locRes.error;
       if (ciRes.error) throw ciRes.error;
@@ -46,7 +46,7 @@ export function useData() {
 
   const deleteLoc = useCallback(async (id: string): Promise<boolean> => {
     const sb = createClient();
-    const { error } = await sb.from('checkins').delete().eq('location_id', id);
+    const { error } = await sb.from('checkin_videos').delete().eq('location_id', id);
     if (error) { addToast('Error: ' + error.message, 'error'); return false; }
     const { error: e2 } = await sb.from('locations').delete().eq('id', id);
     if (e2) { addToast('Error: ' + e2.message, 'error'); return false; }
@@ -78,7 +78,7 @@ export function useData() {
     }
 
     const finalCi = { ...ci, foto_url: fotoUrl };
-    const { error } = await sb.from('checkins').upsert(finalCi);
+    const { error } = await sb.from('checkin_videos').upsert(finalCi);
     if (error) { addToast('Error: ' + error.message, 'error'); return false; }
 
     updateCheckin(finalCi);
@@ -89,7 +89,7 @@ export function useData() {
 
   const deleteCheckin = useCallback(async (id: string): Promise<boolean> => {
     const sb = createClient();
-    const { error } = await sb.from('checkins').delete().eq('id', id);
+    const { error } = await sb.from('checkin_videos').delete().eq('id', id);
     if (error) { addToast('Error: ' + error.message, 'error'); return false; }
     removeCheckin(id);
     updateLastCheckins();
@@ -102,11 +102,26 @@ export function useData() {
     estado: Checkin['estado']
   ): Promise<boolean> => {
     const sb = createClient();
-    const { error } = await sb.from('checkins').update({ estado }).eq('id', id);
-    if (error) { addToast('Error: ' + error.message, 'error'); return false; }
     const { checkins } = useAppStore.getState();
     const ci = checkins.find((c) => c.id === id);
-    if (ci) updateCheckin({ ...ci, estado });
+    if (!ci) return false;
+    if (ci.estado === estado) return true; // sin cambio, no hacer nada
+
+    // Construir nueva entrada del historial
+    const entry: EstadoHistoryEntry = {
+      estado,
+      timestamp: new Date().toISOString(),
+      estado_anterior: ci.estado,
+    };
+    const history = [...(ci.estado_history ?? []), entry];
+
+    const { error } = await sb
+      .from('checkin_videos')
+      .update({ estado, estado_history: history })
+      .eq('id', id);
+    if (error) { addToast('Error: ' + error.message, 'error'); return false; }
+
+    updateCheckin({ ...ci, estado, estado_history: history });
     return true;
   }, [updateCheckin, addToast]);
 

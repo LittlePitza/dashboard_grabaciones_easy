@@ -18,6 +18,12 @@ export interface Location {
 
 export type CheckinEstado = 'grabado' | 'en_edicion' | 'editado' | 'publicado';
 
+export interface EstadoHistoryEntry {
+  estado: CheckinEstado;
+  timestamp: string;
+  estado_anterior?: CheckinEstado | null;
+}
+
 export interface Checkin {
   id: string;
   location_id: string;
@@ -27,6 +33,7 @@ export interface Checkin {
   link?: string | null;
   notes?: string | null;
   created_at?: string;
+  estado_history?: EstadoHistoryEntry[];
 }
 
 export type Role = 'admin' | 'lector';

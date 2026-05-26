@@ -4,6 +4,9 @@ import { useAppStore } from '@/lib/store';
 import { useAuth } from '@/hooks/useAuth';
 import { useData } from '@/hooks/useData';
 import { fmtDate, ytThumb } from '@/lib/utils';
+
+const ESTADO_TS_COLOR: Record<string, string> = { grabado:'var(--color-primary)', en_edicion:'var(--color-gold)', editado:'var(--color-orange)', publicado:'var(--color-success)' };
+const ESTADO_TS_LABEL: Record<string, string> = { grabado:'Grabado', en_edicion:'En edición', editado:'Editado', publicado:'Publicado' };
 import type { Location, Checkin, CheckinEstado } from '@/types';
 
 const ESTADOS: { key: CheckinEstado; label: string }[] = [
@@ -193,6 +196,28 @@ function VideoDetail({ locId, onBack }: { locId: string; onBack: () => void }) {
                   </div>
                 </div>
                 {ci.notes && <div style={{ fontSize:'var(--text-xs)', color:'var(--color-text-muted)' }}>{ci.notes}</div>}
+                {/* Timeline de historial de estados */}
+                {ci.estado_history && ci.estado_history.length > 0 && (
+                  <div style={{ display:'flex', flexDirection:'column', gap:3, padding:'8px 10px', background:'var(--color-surface-offset)', borderRadius:'var(--radius-md)', borderLeft:'2px solid var(--color-divider)' }}>
+                    <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', color:'var(--color-text-faint)', marginBottom:2 }}>Historial de estados</div>
+                    {ci.estado_history.map((h: any, i: number) => {
+                      const color = ESTADO_TS_COLOR[h.estado] ?? 'var(--color-text-muted)';
+                      const d     = new Date(h.timestamp);
+                      const hora  = d.toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit', hour12:false });
+                      const fecha = d.toLocaleDateString('es-MX', { day:'2-digit', month:'short' });
+                      return (
+                        <div key={i} style={{ display:'flex', alignItems:'center', gap:8, fontSize:10, fontFamily:'var(--font-mono)' }}>
+                          <span style={{ color:'var(--color-text-faint)', minWidth:80 }}>{fecha} {hora}</span>
+                          {h.estado_anterior && (
+                            <><span style={{ color:ESTADO_TS_COLOR[h.estado_anterior]??'gray' }}>{ESTADO_TS_LABEL[h.estado_anterior]??h.estado_anterior}</span>
+                            <span style={{ color:'var(--color-text-faint)' }}>→</span></>
+                          )}
+                          <span style={{ color, fontWeight:700 }}>{ESTADO_TS_LABEL[h.estado]??h.estado}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
                 <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center' }}>
                   {ESTADOS.map(e => (
                     <button key={e.key}
