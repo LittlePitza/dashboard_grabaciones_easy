@@ -147,7 +147,23 @@ function LocModal({ loc, onClose, onSave }: { loc: Location|null; onClose: () =>
     id: genId(), name:'', address:'', responsable:'', freq_days:15, lat:null, lng:null,
     notion_url:'', playlist_url:'', created_at: new Date().toISOString(),
   });
+  const [geoLoading, setGeoLoading] = useState(false);
   const set = (k: keyof Location, v: any) => setForm(f => ({ ...f, [k]: v }));
+
+  const captureLocation = () => {
+    if (!navigator.geolocation) return;
+    setGeoLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setForm(f => ({ ...f, lat: pos.coords.latitude, lng: pos.coords.longitude }));
+        setGeoLoading(false);
+      },
+      () => {
+        setGeoLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   return (
     <div className="modal-overlay" onClick={e => { if(e.target===e.currentTarget) onClose(); }}>
@@ -163,9 +179,23 @@ function LocModal({ loc, onClose, onSave }: { loc: Location|null; onClose: () =>
             <div className="field"><label>Frecuencia (días)</label><input type="number" className="field-input" value={form.freq_days} onChange={e => set('freq_days',parseInt(e.target.value)||15)} min={1} /></div>
           </div>
           <div className="field"><label>Dirección</label><input className="field-input" value={form.address??''} onChange={e => set('address',e.target.value)} /></div>
-          <div className="field-row">
-            <div className="field"><label>Latitud</label><input type="number" className="field-input" value={form.lat??''} onChange={e => set('lat',parseFloat(e.target.value)||null)} step="any" /></div>
-            <div className="field"><label>Longitud</label><input type="number" className="field-input" value={form.lng??''} onChange={e => set('lng',parseFloat(e.target.value)||null)} step="any" /></div>
+          <div className="field">
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+              <label style={{ margin:0 }}>Coordenadas</label>
+              <button
+                type="button"
+                onClick={captureLocation}
+                disabled={geoLoading}
+                style={{ display:'flex', alignItems:'center', gap:6, padding:'4px 10px', borderRadius:'var(--radius-md)', fontSize:'var(--text-xs)', fontWeight:600, background:'var(--color-primary)', color:'#fff', border:'none', cursor: geoLoading ? 'wait' : 'pointer', opacity: geoLoading ? 0.7 : 1 }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="9" strokeDasharray="4 2"/></svg>
+                {geoLoading ? 'Obteniendo…' : 'Usar mi ubicacion'}
+              </button>
+            </div>
+            <div className="field-row" style={{ marginBottom:0 }}>
+              <div className="field" style={{ marginBottom:0 }}><label>Latitud</label><input type="number" className="field-input" value={form.lat??''} onChange={e => set('lat',parseFloat(e.target.value)||null)} step="any" placeholder="0.000000" /></div>
+              <div className="field" style={{ marginBottom:0 }}><label>Longitud</label><input type="number" className="field-input" value={form.lng??''} onChange={e => set('lng',parseFloat(e.target.value)||null)} step="any" placeholder="0.000000" /></div>
+            </div>
           </div>
           <div className="field"><label>Link Notion / Drive</label><input type="url" className="field-input" value={form.notion_url??''} onChange={e => set('notion_url',e.target.value)} placeholder="https://…" /></div>
           <div className="field"><label>Playlist YouTube</label><input type="url" className="field-input" value={form.playlist_url??''} onChange={e => set('playlist_url',e.target.value)} placeholder="https://youtube.com/playlist?…" /></div>
