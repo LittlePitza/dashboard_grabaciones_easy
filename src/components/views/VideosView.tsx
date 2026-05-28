@@ -124,6 +124,18 @@ function VideoDetail({ locId, onBack }: { locId: string; onBack: () => void }) {
   const { locations, checkins } = useAppStore() as any;
   const { can } = useAuth();
   const { deleteCheckin, updateCheckinEstado } = useData();
+  const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
+  const [linkDraft, setLinkDraft] = useState('');
+
+  const saveLink = async (ci: Checkin) => {
+    const sb = (await import('@/lib/supabase/client')).createClient();
+    const { error } = await sb.from('checkins').update({ link: linkDraft.trim() || null }).eq('id', ci.id);
+    if (!error) {
+      const { updateCheckin } = (await import('@/lib/store')).useAppStore.getState();
+      updateCheckin({ ...ci, link: linkDraft.trim() || null });
+    }
+    setEditingLinkId(null);
+  };
 
   const loc    = (locations as Location[]).find(l => l.id === locId);
   const locCIs = useMemo(() =>
@@ -230,11 +242,43 @@ function VideoDetail({ locId, onBack }: { locId: string; onBack: () => void }) {
                       onClick={() => can('change_estado') && updateCheckinEstado(ci.id, e.key)}
                     >{e.label}</button>
                   ))}
-                  {ci.link && (
-                    <a href={ci.link} target="_blank" rel="noopener noreferrer" style={{ fontSize:'var(--text-xs)', color:'var(--color-primary)', fontWeight:600, marginLeft:'auto' }}>
-                      ▶ Ver video
-                    </a>
-                  )}
+                  <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:6 }}>
+                    {editingLinkId === ci.id ? (
+                      <>
+                        <input
+                          autoFocus
+                          type="url"
+                          className="field-input"
+                          style={{ fontSize:'var(--text-xs)', padding:'3px 8px', width:220 }}
+                          placeholder="https://youtube.com/..."
+                          value={linkDraft}
+                          onChange={e => setLinkDraft(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') saveLink(ci); if (e.key === 'Escape') setEditingLinkId(null); }}
+                        />
+                        <button className="btn btn-primary btn-sm" style={{ padding:'3px 10px', fontSize:10 }} onClick={() => saveLink(ci)}>Guardar</button>
+                        <button className="btn btn-ghost btn-sm" style={{ padding:'3px 8px', fontSize:10 }} onClick={() => setEditingLinkId(null)}>Cancelar</button>
+                      </>
+                    ) : (
+                      <>
+                        {ci.link && (
+                          <a href={ci.link} target="_blank" rel="noopener noreferrer" style={{ fontSize:'var(--text-xs)', color:'var(--color-primary)', fontWeight:600 }}>
+                            ▶ Ver video
+                          </a>
+                        )}
+                        {can('change_estado') && (
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            style={{ padding:'3px 8px', fontSize:10, color: ci.link ? 'var(--color-text-muted)' : 'var(--color-primary)', fontWeight: ci.link ? 400 : 700 }}
+                            onClick={() => { setLinkDraft(ci.link ?? ''); setEditingLinkId(ci.id); }}
+                          >
+                            {ci.link ? (
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            ) : '+ Agregar link'}
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
