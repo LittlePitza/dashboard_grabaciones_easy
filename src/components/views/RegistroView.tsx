@@ -4,6 +4,7 @@ import { useAppStore } from '@/lib/store';
 import { useAuth } from '@/hooks/useAuth';
 import { useData } from '@/hooks/useData';
 import { fmtDate, toCSV, downloadCSV, today } from '@/lib/utils';
+import { CheckinModal } from '@/components/modals/CheckinModal';
 import type { Location, Checkin, EstadoHistoryEntry } from '@/types';
 
 const ESTADO_COLOR: Record<string, string> = {
@@ -79,6 +80,7 @@ export function RegistroView() {
   const [search, setSearch]   = useState('');
   const [vista, setVista]     = useState<'actividad' | 'checkins'>('actividad');
   const [logFilter, setLogFilter] = useState<'todo' | 'hoy' | 'semana'>('hoy');
+  const [showCheckinModal, setShowCheckinModal] = useState(false);
 
   const getLocName = (id: string) => (locations as Location[]).find(l => l.id === id)?.name ?? id;
 
@@ -150,6 +152,12 @@ export function RegistroView() {
       <div className="page-header">
         <h1 className="page-title">Registro</h1>
         <div className="page-actions">
+          {can('checkin') && (
+            <button className="btn btn-primary btn-sm" onClick={() => setShowCheckinModal(true)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="20 6 9 17 4 12"/></svg>
+              Nuevo check-in
+            </button>
+          )}
           <button className="btn btn-secondary btn-sm" onClick={vista === 'actividad' ? exportarLog : exportarCheckins}>
             Exportar CSV
           </button>
@@ -330,6 +338,10 @@ export function RegistroView() {
             </div>
           )}
         </div>
+      )}
+
+      {showCheckinModal && (
+        <CheckinModal onClose={() => setShowCheckinModal(false)} />
       )}
     </div>
   );

@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useAuth } from '@/hooks/useAuth';
 import { locStatus, daysUntilDue, fmtDate, mapsUrl, today, freqLabel } from '@/lib/utils';
+import { CheckinModal } from '@/components/modals/CheckinModal';
 import type { Location } from '@/types';
 
 const MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
@@ -34,6 +36,7 @@ const statusColor = (st: string) =>
 export function DashboardView() {
   const { locations, checkins, setView } = useAppStore() as any;
   const { can } = useAuth();
+  const [checkinLocId, setCheckinLocId] = useState<string | null>(null);
 
   const now      = new Date();
   const hr       = now.getHours();
@@ -134,7 +137,14 @@ export function DashboardView() {
                 </div>
                 <div style={{ display:'flex', gap:4, flexShrink:0 }}>
                   {can('checkin') && (
-                    <button className="btn btn-primary btn-sm" style={{ padding:'4px 8px' }} title="Check-in">✓</button>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      style={{ padding:'4px 8px' }}
+                      title="Check-in"
+                      onClick={() => setCheckinLocId(loc.id)}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><polyline points="20 6 9 17 4 12"/></svg>
+                    </button>
                   )}
                   {loc.lat && loc.lng && (
                     <a className="btn btn-ghost btn-sm" href={mapsUrl(loc.lat, loc.lng)} target="_blank" rel="noopener noreferrer" style={{ padding:'4px 8px' }}>↗</a>
@@ -206,6 +216,13 @@ export function DashboardView() {
           })}
         </Panel>
       </div>
+
+      {checkinLocId && (
+        <CheckinModal
+          locationId={checkinLocId}
+          onClose={() => setCheckinLocId(null)}
+        />
+      )}
     </div>
   );
 }

@@ -3,12 +3,14 @@ import { useMemo, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useAuth } from '@/hooks/useAuth';
 import { locStatus, daysUntilDue, daysAgo, fmtDate, mapsUrl, freqLabel } from '@/lib/utils';
+import { CheckinModal } from '@/components/modals/CheckinModal';
 import type { Location } from '@/types';
 
 export function CorrienteView() {
   const { locations, checkins } = useAppStore() as any;
   const { can } = useAuth();
   const [search, setSearch] = useState('');
+  const [checkinLocId, setCheckinLocId] = useState<string | null>(null);
 
   const ok = useMemo(() =>
     (locations as Location[]).filter(l => locStatus(l) === 'ok'), [locations]);
@@ -121,7 +123,11 @@ export function CorrienteView() {
                 </div>
                 <div style={{ display:'flex', gap:8, paddingTop:12, borderTop:'1px solid var(--color-divider)' }}>
                   {can('checkin') && (
-                    <button className="btn btn-primary btn-sm" style={{ flex:1, justifyContent:'center' }}>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      style={{ flex:1, justifyContent:'center' }}
+                      onClick={() => setCheckinLocId(loc.id)}
+                    >
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="20 6 9 17 4 12"/></svg>
                       Check-in
                     </button>
@@ -137,6 +143,13 @@ export function CorrienteView() {
             );
           })}
         </div>
+      )}
+
+      {checkinLocId && (
+        <CheckinModal
+          locationId={checkinLocId}
+          onClose={() => setCheckinLocId(null)}
+        />
       )}
     </div>
   );

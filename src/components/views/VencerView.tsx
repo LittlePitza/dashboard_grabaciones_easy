@@ -1,11 +1,15 @@
 'use client';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { locStatus, daysUntilDue, fmtDate, mapsUrl } from '@/lib/utils';
+import { CheckinModal } from '@/components/modals/CheckinModal';
+import { useAuth } from '@/hooks/useAuth';
 import type { Location } from '@/types';
 
 export function VencerView() {
   const { locations } = useAppStore() as any;
+  const { can } = useAuth();
+  const [checkinLocId, setCheckinLocId] = useState<string | null>(null);
 
   const list = useMemo(() =>
     (locations as Location[])
@@ -52,10 +56,27 @@ export function VencerView() {
                 {loc.lat && loc.lng && (
                   <a className="btn btn-ghost btn-sm" href={mapsUrl(loc.lat, loc.lng)} target="_blank" rel="noopener noreferrer" style={{ flexShrink:0 }}>Maps</a>
                 )}
+                {can('checkin') && (
+                  <button
+                    className="btn btn-primary btn-sm"
+                    style={{ flexShrink:0 }}
+                    onClick={() => setCheckinLocId(loc.id)}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="20 6 9 17 4 12"/></svg>
+                    Check-in
+                  </button>
+                )}
               </div>
             );
           })}
         </div>
+      )}
+
+      {checkinLocId && (
+        <CheckinModal
+          locationId={checkinLocId}
+          onClose={() => setCheckinLocId(null)}
+        />
       )}
     </div>
   );
