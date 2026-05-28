@@ -4,6 +4,7 @@ import { useAppStore } from '@/lib/store';
 import { useData } from '@/hooks/useData';
 import { useAuth } from '@/hooks/useAuth';
 import { locStatus, daysUntilDue, fmtDate, mapsUrl, genId, today } from '@/lib/utils';
+import { CheckinModal } from '@/components/modals/CheckinModal';
 import type { Location } from '@/types';
 
 export function LocationsView() {
@@ -13,6 +14,7 @@ export function LocationsView() {
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Location | null>(null);
+  const [checkinLocId, setCheckinLocId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     let locs = locations as Location[];
@@ -112,6 +114,12 @@ export function LocationsView() {
                   {due !== null && <span style={{ color }}>{due >= 0 ? `${due}d rest.` : `${Math.abs(due)}d tard.`}</span>}
                 </div>
                 <div style={{ display:'flex', gap:8, paddingTop:12, borderTop:'1px solid var(--color-divider)' }}>
+                  {can('checkin') && (
+                    <button className="btn btn-primary btn-sm" onClick={() => setCheckinLocId(loc.id)}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="20 6 9 17 4 12"/></svg>
+                      Check-in
+                    </button>
+                  )}
                   {can('edit_loc') && (
                     <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(loc); setShowModal(true); }}>Editar</button>
                   )}
@@ -136,6 +144,13 @@ export function LocationsView() {
           loc={editing}
           onClose={() => setShowModal(false)}
           onSave={async (l) => { const ok = await saveLoc(l); if(ok) setShowModal(false); }}
+        />
+      )}
+
+      {checkinLocId && (
+        <CheckinModal
+          locationId={checkinLocId}
+          onClose={() => setCheckinLocId(null)}
         />
       )}
     </div>
