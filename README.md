@@ -1,5 +1,7 @@
 # Grabación Obras
 
+Pagina: https://dashboard-obras-omega.vercel.app/
+
 Sistema de seguimiento de grabaciones y locaciones para equipos de producción de video. Permite monitorear el estado de cada obra, planificar rutas de visita, gestionar el flujo de edición y publicación de videos.
 
 ## Stack
